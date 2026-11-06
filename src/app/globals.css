@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f6f8;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --foreground: #16181d;
+  --muted: #6b7280;
+  --border: #e7eaef;
+  --accent: #16a34a;
+  --accent-foreground: #ffffff;
+  --accent-soft: #e9f8ef;
+  --danger: #dc2626;
+  --danger-soft: #fdecec;
+  --warning: #d97706;
+  --warning-soft: #fef3e0;
+  --info: #2563eb;
+  --info-soft: #eaf1fd;
+  --radius: 14px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+:root[data-theme="dark"] {
+  --background: #0e1116;
+  --surface: #161a21;
+  --surface-muted: #1b2029;
+  --foreground: #e8eaed;
+  --muted: #8b93a1;
+  --border: #272d38;
+  --accent: #22c55e;
+  --accent-foreground: #08130c;
+  --accent-soft: #10291b;
+  --danger: #f87171;
+  --danger-soft: #2c1618;
+  --warning: #fbbf24;
+  --warning-soft: #2b2110;
+  --info: #60a5fa;
+  --info-soft: #141f33;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #0e1116;
+    --surface: #161a21;
+    --surface-muted: #1b2029;
+    --foreground: #e8eaed;
+    --muted: #8b93a1;
+    --border: #272d38;
+    --accent: #22c55e;
+    --accent-foreground: #08130c;
+    --accent-soft: #10291b;
+    --danger: #f87171;
+    --danger-soft: #2c1618;
+    --warning: #fbbf24;
+    --warning-soft: #2b2110;
+    --info: #60a5fa;
+    --info-soft: #141f33;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --radius-card: var(--radius);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}

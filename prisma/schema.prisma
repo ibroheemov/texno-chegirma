@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  CREDIT
+  MIXED
+}
+
+enum LedgerDirection {
+  IN
+  OUT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELED
+  FAILED
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  currency  String   @default("so'm")
+  phone     String?
+  address   String?
+  logoUrl   String?
+  usdRate   Int?
+  showDebtInUsdOnly   Boolean @default(false)
+  enableMixedPayment  Boolean @default(true)
+  notifyNewOrders     Boolean @default(true)
+  soundAlert          Boolean @default(true)
+  autoPrintReceipt    Boolean @default(false)
+  receiptFooter       String?
+  telegramUsername    String?
+  telegramBotToken    String?
+  telegramChatId      String?
+  customPaymentMethods Json?
+  createdAt DateTime @default(now())
+
+  users      User[]
+  categories Category[]
+  products   Product[]
+  customers  Customer[]
+  sales      Sale[]
+  ledger     LedgerEntry[]
+  employees  Employee[]
+  orders     OnlineOrder[]
+  suppliers  Supplier[]
+  receipts   GoodsReceipt[]
+  handovers  CashHandover[]
+}
+
+model OnlineOrder {
+  id              String        @id @default(cuid())
+  storeId         String
+  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerName    String
+  customerPhone   String
+  customerAddress String?
+  items           Json
+  total           Int
+  paymentMethod   PaymentMethod @default(CASH)
+  status          OrderStatus   @default(PENDING)
+  courierId       String?
+  courier         Employee?     @relation(fields: [courierId], references: [id])
+  createdAt       DateTime      @default(now())
+
+  @@index([storeId, status])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String
+  login     String   @unique
+  password  String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  storeId  String
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name     String
+  products Product[]
+
+  @@unique([storeId, name])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  name        String
+  sku         String
+  price       Int
+  costPrice   Int      @default(0)
+  stock       Int      @default(0)
+  lowStockAt  Int      @default(3)
+  imageUrl    String?
+  unit         String   @default("dona")
+  barcodePrice Int?
+  onSale       Boolean  @default(false)
+  salePrice    Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  saleItems SaleItem[]
+  receipts  GoodsReceipt[]
+
+  @@unique([storeId, sku])
+  @@index([storeId, name])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  address   String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  sales  Sale[]
+  debts  CreditLedger[]
+
+  @@index([storeId, name])
+}
+
+model Sale {
+  id            String        @id @default(cuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  total         Int
+  paymentMethod PaymentMethod
+  cashAmount    Int           @default(0)
+  cardAmount    Int           @default(0)
+  creditAmount  Int           @default(0)
+  profit        Int           @default(0)
+  canceled      Boolean       @default(false)
+  canceledAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  items       SaleItem[]
+  creditDebt  CreditLedger?
+  ledgerEntry LedgerEntry?
+
+  @@index([storeId, createdAt])
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  qty       Int
+  price     Int
+  costPrice Int     @default(0)
+}
+
+model CreditLedger {
+  id          String    @id @default(cuid())
+  storeId     String
+  saleId      String?   @unique
+  sale        Sale?     @relation(fields: [saleId], references: [id])
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  totalAmount Int
+  paidAmount  Int       @default(0)
+  dueDate     DateTime
+  createdAt   DateTime  @default(now())
+  payments    CreditPayment[]
+
+  @@index([storeId, dueDate])
+}
+
+model CreditPayment {
+  id        String       @id @default(cuid())
+  ledgerId  String
+  ledger    CreditLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  amount    Int
+  createdAt DateTime     @default(now())
+}
+
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  storeId     String
+  store       Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  saleId      String?         @unique
+  sale        Sale?           @relation(fields: [saleId], references: [id])
+  direction   LedgerDirection
+  amount      Int
+  method      PaymentMethod   @default(CASH)
+  category    String?
+  note        String?
+  createdAt   DateTime        @default(now())
+
+  @@index([storeId, createdAt])
+}
+
+enum HandoverStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CashHandover {
+  id            String         @id @default(cuid())
+  storeId       String
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  handedOverBy  String
+  receivedBy    String
+  note          String?
+  cashAmount    Int            @default(0)
+  cardAmount    Int            @default(0)
+  creditAmount  Int            @default(0)
+  totalAmount   Int            @default(0)
+  status        HandoverStatus @default(PENDING)
+  createdAt     DateTime       @default(now())
+  decidedAt     DateTime?
+
+  @@index([storeId, status])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+
+  receipts GoodsReceipt[]
+
+  @@index([storeId, name])
+}
+
+model GoodsReceipt {
+  id            String        @id @default(cuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplierId    String
+  supplier      Supplier      @relation(fields: [supplierId], references: [id])
+  productId     String?
+  product       Product?      @relation(fields: [productId], references: [id])
+  productName   String
+  qty           Int
+  totalCost     Int
+  paymentMethod PaymentMethod
+  paidAmount    Int           @default(0)
+  createdAt     DateTime      @default(now())
+
+  @@index([storeId, supplierId])
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  position  String?
+  salary    Int      @default(0)
+  hourlyRate Int     @default(0)
+  login       String?
+  passwordHash String?
+  isCourier   Boolean  @default(false)
+  photoUrl    String?
+  allowedLocationName String?
+  allowedLat          Float?
+  allowedLng          Float?
+  allowedRadius       Int?    @default(100)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  attendance Attendance[]
+  deliveries OnlineOrder[]
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  employeeId String
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime
+  status     AttendanceStatus
+  checkIn    DateTime?
+  checkOut   DateTime?
+  checkInLat Float?
+  checkInLng Float?
+  withinRange Boolean?
+
+  @@unique([employeeId, date])
+}

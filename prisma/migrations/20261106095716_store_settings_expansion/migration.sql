@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "Store" ADD COLUMN     "address" TEXT,
+ADD COLUMN     "autoPrintReceipt" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "customPaymentMethods" JSONB,
+ADD COLUMN     "enableMixedPayment" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "logoUrl" TEXT,
+ADD COLUMN     "notifyNewOrders" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "phone" TEXT,
+ADD COLUMN     "receiptFooter" TEXT,
+ADD COLUMN     "showDebtInUsdOnly" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "soundAlert" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "telegramBotToken" TEXT,
+ADD COLUMN     "telegramChatId" TEXT,
+ADD COLUMN     "telegramUsername" TEXT,
+ADD COLUMN     "usdRate" INTEGER;

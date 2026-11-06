@@ -1,0 +1,12 @@
+{
+  "name": "Savdo Panel",
+  "short_name": "Savdo",
+  "description": "Kassa, ombor, moliya, nasiya va onlayn do'kon — bir joyda.",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#16a34a",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
