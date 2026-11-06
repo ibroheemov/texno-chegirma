@@ -27,13 +27,11 @@ export async function GET(req: NextRequest) {
         : {}),
     },
     orderBy: { createdAt: "desc" },
-    include: direction === "IN" ? { sale: { include: { customer: true } } } : undefined,
+    include: { sale: { include: { customer: true } } },
   });
 
-  const saleEntries = entries.filter(
-    (e) => "saleId" in e && e.saleId && !("sale" in e && e.sale?.canceled)
-  );
-  const manualEntries = entries.filter((e) => !("saleId" in e && e.saleId));
+  const saleEntries = entries.filter((e) => e.saleId && !e.sale?.canceled);
+  const manualEntries = entries.filter((e) => !e.saleId);
 
   const salesTotal = saleEntries.reduce((s, e) => s + e.amount, 0);
   const manualTotal = manualEntries.reduce((s, e) => s + e.amount, 0);

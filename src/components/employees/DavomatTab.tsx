@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 
 type Period = "today" | "week" | "month";
 
-type Record = {
+type AttendanceRecord = {
   id: string;
   date: string;
   status: "PRESENT" | "ABSENT" | "LATE";
@@ -30,7 +30,7 @@ const STATUS_TONE: Record<string, "accent" | "danger" | "warning"> = {
 export function DavomatTab({ employees }: { employees: { id: string; name: string }[] }) {
   const [period, setPeriod] = useState<Period>("today");
   const [employeeId, setEmployeeId] = useState("all");
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [stats, setStats] = useState<{ total: number; presentToday: number; avgMinutes: number | null }>({
     total: 0,
     presentToday: 0,
