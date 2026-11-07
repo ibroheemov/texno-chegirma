@@ -55,6 +55,16 @@ export async function GET(req: NextRequest) {
   });
   const handedOver = handedOverAgg._sum.cashAmount ?? 0;
 
+  const profitAgg = await prisma.sale.aggregate({
+    where: {
+      storeId: session.storeId,
+      canceled: false,
+      ...(start ? { createdAt: { gte: start } } : {}),
+    },
+    _sum: { profit: true },
+  });
+  const profit = profitAgg._sum.profit ?? 0;
+
   return NextResponse.json({
     entries,
     balances: {
@@ -65,6 +75,7 @@ export async function GET(req: NextRequest) {
       totalIn: cashIn + cardIn + mixedIn,
       totalOut: cashOut + cardOut,
       handedOver,
+      profit,
     },
   });
 }

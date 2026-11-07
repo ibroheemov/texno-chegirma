@@ -59,7 +59,7 @@ export async function getDaySummary(storeId: string, day: Date) {
 export async function getRangeSummary(storeId: string, start: Date, end: Date) {
   const sales = await prisma.sale.findMany({
     where: { storeId, createdAt: { gte: start, lte: end }, canceled: false },
-    include: { items: true },
+    include: { items: true, customer: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -90,6 +90,8 @@ export async function getRangeSummary(storeId: string, start: Date, end: Date) {
     createdAt: s.createdAt,
     paymentMethod: s.paymentMethod,
     total: s.total,
+    customerName: s.customer?.name ?? null,
+    items: s.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
   }));
 
   const itemTotals = new Map<string, { name: string; qty: number; amount: number }>();

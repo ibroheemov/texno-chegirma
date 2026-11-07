@@ -15,6 +15,12 @@ export async function POST(req: NextRequest) {
   const cashAmount: number = body.cashAmount ?? 0;
   const cardAmount: number = body.cardAmount ?? 0;
   const creditAmount: number = body.creditAmount ?? 0;
+  const customAmountsInput: Record<string, number> =
+    body.customAmounts && typeof body.customAmounts === "object" ? body.customAmounts : {};
+  const customAmounts = Object.fromEntries(
+    Object.entries(customAmountsInput).filter(([, v]) => typeof v === "number" && v > 0)
+  );
+  const customTotal = Object.values(customAmounts).reduce((sum, v) => sum + v, 0);
   const dueDate: string | undefined = body.dueDate;
 
   if (!items.length) {
@@ -69,6 +75,7 @@ export async function POST(req: NextRequest) {
         cashAmount,
         cardAmount,
         creditAmount,
+        customAmounts: Object.keys(customAmounts).length ? customAmounts : undefined,
         items: { create: saleItemsData },
       },
     });
@@ -80,13 +87,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (cashAmount > 0 || cardAmount > 0) {
+    if (cashAmount > 0 || cardAmount > 0 || customTotal > 0) {
       await tx.ledgerEntry.create({
         data: {
           storeId: session.storeId,
           saleId: created.id,
           direction: "IN",
-          amount: cashAmount + cardAmount,
+          amount: cashAmount + cardAmount + customTotal,
           method: paymentMethod,
         },
       });

@@ -11,6 +11,7 @@ import {
   ArrowUpRight,
   PackageCheck,
   Ban,
+  TrendingUp,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -40,6 +41,7 @@ type Balances = {
   totalIn: number;
   totalOut: number;
   handedOver: number;
+  profit: number;
 };
 
 export function FinanceView() {
@@ -81,7 +83,8 @@ export function FinanceView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Daromad" value={formatSom(balances?.profit ?? 0)} icon={TrendingUp} />
         <StatCard label="Naqd qoldiq" value={formatSom(balances?.cash ?? 0)} icon={Wallet} />
         <StatCard label="Karta qoldiq" value={formatSom(balances?.card ?? 0)} icon={CreditCard} />
         <StatCard label="Nasiyadagi summa" value={formatSom(balances?.creditOutstanding ?? 0)} icon={Landmark} />

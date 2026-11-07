@@ -7,10 +7,13 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ProductImage } from "@/components/ui/ProductImage";
-import { formatSom, formatDateTime } from "@/lib/format";
+import { formatSom } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useRouter } from "next/navigation";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
+import { ReceiptModal } from "./ReceiptModal";
+import { MixedPaymentModal } from "./MixedPaymentModal";
+import { printReceipt, type ReceiptSettings, type ReceiptSale } from "@/lib/receipt";
 
 type ProductWithCategory = Product & { category: Category | null };
 
@@ -22,89 +25,7 @@ type CartLine = {
 type StatusFilter = "all" | "available" | "low" | "out";
 type PaymentMethod = "CASH" | "CARD" | "CREDIT" | "MIXED";
 
-type ReceiptSettings = {
-  storeName: string;
-  phone: string | null;
-  address: string | null;
-  logoUrl: string | null;
-  telegramUsername: string | null;
-  footer: string | null;
-  autoPrint: boolean;
-};
-
-type LastSale = {
-  items: { name: string; qty: number; price: number }[];
-  total: number;
-  method: PaymentMethod;
-  customerName: string | null;
-  createdAt: Date;
-};
-
-const METHOD_LABEL: Record<PaymentMethod, string> = {
-  CASH: "Naqd",
-  CARD: "Karta",
-  CREDIT: "Nasiya",
-  MIXED: "Aralash",
-};
-
-function printReceipt(sale: LastSale, settings: ReceiptSettings) {
-  const win = window.open("", "_blank", "width=380,height=600");
-  if (!win) return;
-  const rows = sale.items
-    .map(
-      (i) => `
-      <div class="row">
-        <span>${escapeHtml(i.name)} × ${i.qty}</span>
-        <span>${formatSom(i.price * i.qty)}</span>
-      </div>`
-    )
-    .join("");
-
-  win.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Chek</title>
-        <style>
-          body { font-family: monospace; width: 280px; margin: 0 auto; padding: 16px; color: #111; }
-          .center { text-align: center; }
-          .logo { max-width: 64px; max-height: 64px; margin: 0 auto 8px; display: block; }
-          h1 { font-size: 16px; margin: 0 0 2px; }
-          p { margin: 2px 0; font-size: 11px; }
-          .divider { border-top: 1px dashed #999; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
-          .total { font-weight: bold; font-size: 14px; }
-          .footer { margin-top: 10px; font-size: 11px; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="center">
-          ${settings.logoUrl ? `<img class="logo" src="${settings.logoUrl}" alt="" />` : ""}
-          <h1>${escapeHtml(settings.storeName)}</h1>
-          ${settings.phone ? `<p>${escapeHtml(settings.phone)}</p>` : ""}
-          ${settings.address ? `<p>${escapeHtml(settings.address)}</p>` : ""}
-          ${settings.telegramUsername ? `<p>${escapeHtml(settings.telegramUsername)}</p>` : ""}
-        </div>
-        <div class="divider"></div>
-        <p>${formatDateTime(sale.createdAt)}</p>
-        ${sale.customerName ? `<p>Mijoz: ${escapeHtml(sale.customerName)}</p>` : ""}
-        <div class="divider"></div>
-        ${rows}
-        <div class="divider"></div>
-        <div class="row total"><span>JAMI</span><span>${formatSom(sale.total)}</span></div>
-        <p>To&apos;lov: ${METHOD_LABEL[sale.method]}</p>
-        ${settings.footer ? `<div class="footer">${escapeHtml(settings.footer)}</div>` : ""}
-        <script>window.onload = () => { window.print(); };</script>
-      </body>
-    </html>
-  `);
-  win.document.close();
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+type LastSale = ReceiptSale;
 
 function effectivePrice(p: Product) {
   return p.onSale && p.salePrice ? p.salePrice : p.price;
@@ -121,12 +42,14 @@ export function PosView({
   categories,
   customers,
   enableMixedPayment = true,
+  customPaymentMethods = [],
   receipt,
 }: {
   initialProducts: ProductWithCategory[];
   categories: Category[];
   customers: Customer[];
   enableMixedPayment?: boolean;
+  customPaymentMethods?: string[];
   receipt?: ReceiptSettings;
 }) {
   const router = useRouter();
@@ -146,11 +69,17 @@ export function PosView({
   const [newCustomerNote, setNewCustomerNote] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [mixedCash, setMixedCash] = useState(0);
+  const [mixedCard, setMixedCard] = useState(0);
+  const [mixedCredit, setMixedCredit] = useState(0);
+  const [mixedCustomAmounts, setMixedCustomAmounts] = useState<Record<string, number>>({});
+  const [mixedModalOpen, setMixedModalOpen] = useState(false);
+  const [standaloneCustomMethod, setStandaloneCustomMethod] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [lastSale, setLastSale] = useState<LastSale | null>(null);
+  const [receiptPreviewOpen, setReceiptPreviewOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -225,10 +154,18 @@ export function PosView({
   );
   const totalQty = useMemo(() => cart.reduce((sum, l) => sum + l.qty, 0), [cart]);
 
+  const mixedCustomTotal = useMemo(
+    () => Object.values(mixedCustomAmounts).reduce((s, v) => s + v, 0),
+    [mixedCustomAmounts]
+  );
+  const mixedEntered = mixedCash + mixedCard + mixedCredit + mixedCustomTotal;
+
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === customerId) ?? null,
     [customers, customerId]
   );
+  const customerInfoMissing =
+    customerMode === "existing" ? !customerId : !newCustomerName.trim();
   const filteredCustomers = useMemo(() => {
     const q = customerSearch.trim().toLowerCase();
     if (!q) return customers.slice(0, 8);
@@ -243,12 +180,12 @@ export function PosView({
       setError("Savatcha bo'sh");
       return;
     }
-    if (method === "CREDIT" && customerMode === "existing" && !customerId) {
-      setError("Nasiya uchun mijoz tanlang");
+    if (customerMode === "existing" && !customerId) {
+      setError("Mijozni tanlang");
       return;
     }
-    if (method === "CREDIT" && customerMode === "new" && !newCustomerName.trim()) {
-      setError("Nasiya uchun mijoz ismini kiriting");
+    if (customerMode === "new" && !newCustomerName.trim()) {
+      setError("Mijoz ismini kiriting");
       return;
     }
     setSubmitting(true);
@@ -274,9 +211,20 @@ export function PosView({
       resolvedCustomerId = customerData.customer.id;
     }
 
-    const cashAmount = method === "CASH" ? total : method === "MIXED" ? mixedCash : 0;
-    const cardAmount = method === "CARD" ? total : method === "MIXED" ? total - mixedCash : 0;
-    const creditAmount = method === "CREDIT" ? total : 0;
+    if (method === "MIXED" && !standaloneCustomMethod && mixedEntered !== total) {
+      setError("Aralash to'lov summalari jami summaga teng bo'lishi kerak");
+      return;
+    }
+
+    const cashAmount = standaloneCustomMethod ? 0 : method === "CASH" ? total : method === "MIXED" ? mixedCash : 0;
+    const cardAmount = standaloneCustomMethod ? 0 : method === "CARD" ? total : method === "MIXED" ? mixedCard : 0;
+    const creditAmount =
+      standaloneCustomMethod ? 0 : method === "CREDIT" ? total : method === "MIXED" ? mixedCredit : 0;
+    const customAmounts = standaloneCustomMethod
+      ? { [standaloneCustomMethod]: total }
+      : method === "MIXED"
+        ? mixedCustomAmounts
+        : {};
 
     const res = await fetch("/api/sales", {
       method: "POST",
@@ -288,6 +236,7 @@ export function PosView({
         cashAmount,
         cardAmount,
         creditAmount,
+        customAmounts,
       }),
     });
     setSubmitting(false);
@@ -304,7 +253,7 @@ export function PosView({
       createdAt: new Date(),
     };
     setLastSale(completedSale);
-    if (receipt?.autoPrint) printReceipt(completedSale, receipt);
+    if (receipt?.autoPrint) void printReceipt(completedSale, receipt);
 
     setCart([]);
     setCustomerMode("existing");
@@ -315,6 +264,11 @@ export function PosView({
     setNewCustomerAddress("");
     setNewCustomerNote("");
     setMethod("CASH");
+    setMixedCash(0);
+    setMixedCard(0);
+    setMixedCredit(0);
+    setMixedCustomAmounts({});
+    setStandaloneCustomMethod(null);
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2000);
     router.refresh();
@@ -493,7 +447,9 @@ export function PosView({
 
         <div className="mt-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-muted">Mijoz ma&apos;lumotlari (ixtiyoriy)</label>
+            <label className="text-xs font-medium text-muted">
+              Mijoz ma&apos;lumotlari <span className="text-danger">*</span>
+            </label>
             <div className="flex gap-1">
               <button
                 type="button"
@@ -603,40 +559,73 @@ export function PosView({
           )}
         </div>
 
-        <div className={cn("mt-3 grid gap-1.5", enableMixedPayment ? "grid-cols-4" : "grid-cols-3")}>
-          {(
-            [
-              ["CASH", "Naqd"],
-              ["CARD", "Karta"],
-              ["CREDIT", "Nasiya"],
-              ...(enableMixedPayment ? [["MIXED", "Aralash"] as [PaymentMethod, string]] : []),
-            ] as [PaymentMethod, string][]
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setMethod(key)}
-              className={cn(
-                "rounded-lg border border-border py-2 text-xs font-medium text-muted",
-                method === key && "border-accent bg-accent-soft text-accent"
-              )}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mt-3 grid grid-cols-3 gap-1.5">
+          {([
+            { kind: "method", method: "CASH", label: "Naqd" },
+            { kind: "method", method: "CARD", label: "Karta" },
+            { kind: "method", method: "CREDIT", label: "Nasiya" },
+            ...customPaymentMethods.map((name) => ({ kind: "custom" as const, name })),
+            ...(enableMixedPayment ? [{ kind: "method" as const, method: "MIXED" as PaymentMethod, label: "Aralash" }] : []),
+          ] as (
+            | { kind: "method"; method: PaymentMethod; label: string }
+            | { kind: "custom"; name: string }
+          )[]).map((entry) => {
+            const isCustom = entry.kind === "custom";
+            const label = isCustom ? entry.name : entry.label;
+            const active = isCustom
+              ? standaloneCustomMethod === entry.name
+              : method === entry.method && !standaloneCustomMethod;
+            return (
+              <button
+                key={isCustom ? `custom:${entry.name}` : entry.method}
+                onClick={() => {
+                  if (isCustom) {
+                    setStandaloneCustomMethod(entry.name);
+                    setMethod("MIXED");
+                  } else {
+                    setStandaloneCustomMethod(null);
+                    setMethod(entry.method);
+                    if (entry.method === "MIXED") setMixedModalOpen(true);
+                  }
+                }}
+                title={label}
+                className={cn(
+                  "truncate rounded-lg border border-border py-2 text-xs font-medium text-muted",
+                  active && "border-accent bg-accent-soft text-accent"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
-        {method === "MIXED" && (
-          <div className="mt-3 flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted">Naqd summa</label>
-            <input
-              type="number"
-              value={mixedCash}
-              min={0}
-              max={total}
-              onChange={(e) => setMixedCash(Math.min(total, Number(e.target.value)))}
-              className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent"
-            />
-            <p className="text-xs text-muted">Karta: {formatSom(total - mixedCash)}</p>
+        {method === "MIXED" && !standaloneCustomMethod && (
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-surface-muted p-3 text-xs">
+            {mixedEntered === total ? (
+              <span className="text-muted">
+                Naqd: <strong className="text-foreground">{formatSom(mixedCash)}</strong> · Karta:{" "}
+                <strong className="text-foreground">{formatSom(mixedCard)}</strong> · Nasiya:{" "}
+                <strong className="text-foreground">{formatSom(mixedCredit)}</strong>
+                {customPaymentMethods.map((m) =>
+                  mixedCustomAmounts[m] ? (
+                    <span key={m}>
+                      {" "}
+                      · {m}: <strong className="text-foreground">{formatSom(mixedCustomAmounts[m])}</strong>
+                    </span>
+                  ) : null
+                )}
+              </span>
+            ) : (
+              <span className="text-danger">Summalar taqsimlanmagan</span>
+            )}
+            <button
+              type="button"
+              onClick={() => setMixedModalOpen(true)}
+              className="shrink-0 font-medium text-accent hover:underline"
+            >
+              O&apos;zgartirish
+            </button>
           </div>
         )}
 
@@ -648,7 +637,7 @@ export function PosView({
             </p>
             {receipt && lastSale && !receipt.autoPrint && (
               <button
-                onClick={() => printReceipt(lastSale, receipt)}
+                onClick={() => setReceiptPreviewOpen(true)}
                 className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
               >
                 <Printer size={12} /> Chek chiqarish
@@ -657,7 +646,17 @@ export function PosView({
           </div>
         )}
 
-        <Button size="lg" className="mt-4" disabled={submitting || cart.length === 0} onClick={checkout}>
+        <Button
+          size="lg"
+          className="mt-4"
+          disabled={
+            submitting ||
+            cart.length === 0 ||
+            customerInfoMissing ||
+            (method === "MIXED" && !standaloneCustomMethod && mixedEntered !== total)
+          }
+          onClick={checkout}
+        >
           {submitting && <Loader2 size={16} className="animate-spin" />}
           To&apos;lov qilish
         </Button>
@@ -667,6 +666,31 @@ export function PosView({
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onDetected={handleScanned}
+      />
+
+      {receipt && (
+        <ReceiptModal
+          open={receiptPreviewOpen}
+          onClose={() => setReceiptPreviewOpen(false)}
+          sale={lastSale}
+          settings={receipt}
+        />
+      )}
+
+      <MixedPaymentModal
+        open={mixedModalOpen}
+        onClose={() => setMixedModalOpen(false)}
+        total={total}
+        cash={mixedCash}
+        card={mixedCard}
+        credit={mixedCredit}
+        customMethods={customPaymentMethods}
+        customAmounts={mixedCustomAmounts}
+        onChangeCash={setMixedCash}
+        onChangeCard={setMixedCard}
+        onChangeCredit={setMixedCredit}
+        onChangeCustom={(name, v) => setMixedCustomAmounts((prev) => ({ ...prev, [name]: v }))}
+        onConfirm={() => setMixedModalOpen(false)}
       />
     </div>
   );

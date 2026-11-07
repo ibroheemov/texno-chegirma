@@ -165,6 +165,7 @@ model Sale {
   cashAmount    Int           @default(0)
   cardAmount    Int           @default(0)
   creditAmount  Int           @default(0)
+  customAmounts Json?
   profit        Int           @default(0)
   canceled      Boolean       @default(false)
   canceledAt    DateTime?

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Receipt, TrendingUp, Wallet, Package } from "lucide-react";
+import { Receipt, Wallet, ShoppingBag } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { PeriodSelect } from "./PeriodSelect";
 import { SalesDetailModal } from "./SalesDetailModal";
-import { InventoryStatusModal } from "./InventoryStatusModal";
+import { SoldItemsModal } from "./SoldItemsModal";
 import { formatSom } from "@/lib/format";
 import { defaultPeriod, periodToParams, periodLabel, type PeriodValue } from "@/lib/period";
+import type { ReceiptSettings } from "@/lib/receipt";
 
 type CardSummary = {
   totalSales: number;
@@ -20,22 +21,17 @@ type CardSummary = {
 export function KassaStats({
   initialSummary,
   prevSummary,
-  totalProducts,
-  available,
-  low,
-  out,
+  receipt,
 }: {
   initialSummary: CardSummary;
   prevSummary: { totalSales: number; totalProfit: number };
-  totalProducts: number;
-  available: number;
-  low: number;
-  out: number;
+  receipt?: ReceiptSettings;
 }) {
   const [period, setPeriod] = useState<PeriodValue>(defaultPeriod());
   const [summary, setSummary] = useState<CardSummary>(initialSummary);
   const [loading, setLoading] = useState(false);
-  const [modal, setModal] = useState<null | "sales" | "inventory">(null);
+  const [modal, setModal] = useState<null | "sales" | "items">(null);
+  const [salesAmountVisible, setSalesAmountVisible] = useState(false);
 
   useEffect(() => {
     if (period.kind === "today") setSummary(initialSummary);
@@ -85,7 +81,7 @@ export function KassaStats({
         <PeriodSelect value={period} onChange={setPeriod} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Savdo summasi"
           value={formatSom(summary.totalSales)}
@@ -94,31 +90,22 @@ export function KassaStats({
           delta={showDelta ? delta(summary.totalSales, prevSummary.totalSales) : undefined}
           deltaLabel={showDelta ? "kechagiga nisbatan" : undefined}
           deltaTone={summary.totalSales >= prevSummary.totalSales ? "accent" : "danger"}
-        />
-        <StatCard
-          label="Daromad"
-          value={formatSom(summary.totalProfit)}
-          icon={TrendingUp}
-          onClick={() => setModal("sales")}
-          delta={showDelta ? delta(summary.totalProfit, prevSummary.totalProfit) : undefined}
-          deltaLabel={showDelta ? "kechagiga nisbatan" : undefined}
-          deltaTone={summary.totalProfit >= prevSummary.totalProfit ? "accent" : "danger"}
+          masked={!salesAmountVisible}
+          onToggleMask={() => setSalesAmountVisible((v) => !v)}
         />
         <StatCard
           label="Cheklar"
           value={String(summary.receipts)}
           icon={Receipt}
           onClick={() => setModal("sales")}
-          delta={`${summary.itemsSold} dona`}
-          deltaLabel={`${summary.distinctProducts} xil mahsulot`}
+          delta="Amaldagi cheklar"
         />
         <StatCard
-          label="Jami tovarlar"
-          value={String(totalProducts)}
-          icon={Package}
-          onClick={() => setModal("inventory")}
-          delta="Ombor"
-          deltaLabel="joriy holat"
+          label="Sotildi"
+          value={`${summary.itemsSold} dona`}
+          icon={ShoppingBag}
+          onClick={() => setModal("items")}
+          delta={`${summary.distinctProducts} xil mahsulot`}
         />
       </div>
 
@@ -127,15 +114,9 @@ export function KassaStats({
         onClose={() => setModal(null)}
         initialPeriod={period}
         title="Savdo tafsilotlari"
+        receipt={receipt}
       />
-      <InventoryStatusModal
-        open={modal === "inventory"}
-        onClose={() => setModal(null)}
-        total={totalProducts}
-        available={available}
-        low={low}
-        out={out}
-      />
+      <SoldItemsModal open={modal === "items"} onClose={() => setModal(null)} initialPeriod={period} />
     </div>
   );
 }
