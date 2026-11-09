@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
@@ -11,6 +12,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
   const product = await prisma.product.findFirst({ where: { id, storeId: session.storeId } });
   if (!product) return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
 
+  const images: string[] = Array.isArray(body.images) ? body.images.filter((u: unknown) => typeof u === "string") : [];
+
   const updated = await prisma.product.update({
     where: { id },
     data: {
@@ -21,7 +24,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
       stock: Number(body.stock ?? 0),
       lowStockAt: Number(body.lowStockAt ?? 3),
       categoryId: body.categoryId || null,
-      imageUrl: body.imageUrl || null,
+      imageUrl: images[0] ?? null,
+      images: images.length ? images : Prisma.JsonNull,
       unit: body.unit || "dona",
       barcodePrice: body.barcodePrice ? Number(body.barcodePrice) : null,
       onSale: Boolean(body.onSale),

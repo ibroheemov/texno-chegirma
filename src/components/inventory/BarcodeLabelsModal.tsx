@@ -5,7 +5,7 @@ import type { Category, Product } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { formatSom } from "@/lib/format";
-import { Printer } from "lucide-react";
+import { Printer, Search } from "lucide-react";
 
 type ProductRow = Product & { category: Category | null };
 
@@ -20,6 +20,7 @@ export function BarcodeLabelsModal({
 }) {
   const [selected, setSelected] = useState<Record<string, number>>({});
   const [printing, setPrinting] = useState(false);
+  const [query, setQuery] = useState("");
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -101,13 +102,35 @@ export function BarcodeLabelsModal({
   }
 
   const selectedCount = Object.values(selected).reduce((a, b) => a + b, 0);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredProducts = normalizedQuery
+    ? products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(normalizedQuery) || p.sku.toLowerCase().includes(normalizedQuery)
+      )
+    : products;
+
+  function handleClose() {
+    setQuery("");
+    onClose();
+  }
 
   return (
-    <Modal open={open} onClose={onClose} title="Shtrix kod etiketkalari">
+    <Modal open={open} onClose={handleClose} title="Shtrix kod etiketkalari">
       <div className="flex flex-col gap-3">
         <p className="text-xs text-muted">Chop etish uchun mahsulotlarni va dona sonini tanlang</p>
+        <div className="relative">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Nomi yoki shtrix kod bo'yicha qidirish..."
+            className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-accent"
+          />
+        </div>
         <div className="flex max-h-72 flex-col gap-1.5 overflow-y-auto">
-          {products.map((p) => (
+          {filteredProducts.map((p) => (
             <div
               key={p.id}
               className="flex items-center gap-2.5 rounded-lg border border-border/60 px-3 py-2"
@@ -133,7 +156,7 @@ export function BarcodeLabelsModal({
               ) : null}
             </div>
           ))}
-          {products.length === 0 && (
+          {filteredProducts.length === 0 && (
             <p className="py-6 text-center text-sm text-muted">Mahsulot topilmadi</p>
           )}
         </div>

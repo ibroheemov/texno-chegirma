@@ -1,20 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Package, Truck, Landmark } from "lucide-react";
+import { Users, Package, Truck } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { CustomerTable } from "./CustomerTable";
 import { OrdersDataView } from "@/components/orders/OrdersDataView";
-import { CreditView } from "@/components/credit/CreditView";
 import type { CustomerRow } from "@/lib/types";
 
-type Tab = "mijozlar" | "buyurtmalar" | "yetkazish" | "qarzdorlar";
+type Tab = "mijozlar" | "buyurtmalar" | "yetkazish";
 
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: "mijozlar", label: "Mijozlar", icon: Users },
   { key: "buyurtmalar", label: "Buyurtmalar", icon: Package },
   { key: "yetkazish", label: "Yetkazish", icon: Truck },
-  { key: "qarzdorlar", label: "Qarzdorlar", icon: Landmark },
 ];
 
 export function MijozlarTabs({ customers }: { customers: CustomerRow[] }) {
@@ -41,7 +39,6 @@ export function MijozlarTabs({ customers }: { customers: CustomerRow[] }) {
       {tab === "mijozlar" && <CustomerTable initialCustomers={customers} />}
       {tab === "buyurtmalar" && <OrdersDataView variant="orders" />}
       {tab === "yetkazish" && <OrdersDataView variant="delivery" />}
-      {tab === "qarzdorlar" && <CreditView />}
     </div>
   );
 }

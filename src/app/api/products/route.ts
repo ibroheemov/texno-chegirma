@@ -58,10 +58,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bu SKU allaqachon mavjud" }, { status: 409 });
   }
 
+  const images: string[] = Array.isArray(body.images) ? body.images.filter((u: unknown) => typeof u === "string") : [];
   const supplierId: string | undefined = body.supplierId || undefined;
   const intakeQty = Number(body.stock ?? 0);
   const costPrice = Number(body.costPrice ?? 0);
   const paymentMethod = ["CASH", "CARD", "CREDIT"].includes(body.paymentMethod) ? body.paymentMethod : "CASH";
+  const currency = body.currency === "usd" ? "usd" : "som";
+  const costUsdPerUnit = currency === "usd" && Number(body.costUsd) > 0 ? Number(body.costUsd) : null;
+  const usdRate = currency === "usd" && Number(body.usdRate) > 0 ? Math.round(Number(body.usdRate)) : null;
 
   let supplier = null;
   if (supplierId) {
@@ -80,7 +84,8 @@ export async function POST(req: NextRequest) {
         stock: supplier ? 0 : intakeQty,
         lowStockAt: Number(body.lowStockAt ?? 3),
         categoryId: body.categoryId || null,
-        imageUrl: body.imageUrl || null,
+        imageUrl: images[0] ?? body.imageUrl ?? null,
+        images: images.length ? images : undefined,
         unit: body.unit || "dona",
         barcodePrice: body.barcodePrice ? Number(body.barcodePrice) : null,
         onSale: Boolean(body.onSale),
@@ -98,6 +103,9 @@ export async function POST(req: NextRequest) {
           productName: created.name,
           qty: intakeQty,
           totalCost,
+          currency,
+          costUsd: costUsdPerUnit ? costUsdPerUnit * intakeQty : null,
+          usdRate,
           paymentMethod,
           paidAmount: paymentMethod === "CREDIT" ? 0 : totalCost,
         },

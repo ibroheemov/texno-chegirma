@@ -20,8 +20,8 @@ type StatusFilter = "all" | "available" | "low" | "out";
 
 function stockBadge(p: Product) {
   if (p.stock <= 0) return <Badge tone="danger">Tugagan</Badge>;
-  if (p.stock <= p.lowStockAt) return <Badge tone="warning">Kam qoldi</Badge>;
-  return <Badge tone="accent">Mavjud</Badge>;
+  if (p.stock <= p.lowStockAt) return <Badge tone="warning">Kam qoldi · {p.stock}</Badge>;
+  return <Badge tone="accent">{p.stock} dona</Badge>;
 }
 
 export function InventoryTable({
@@ -146,57 +146,66 @@ export function InventoryTable({
 
       {deleteError && <p className="mt-3 text-sm text-danger">{deleteError}</p>}
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs uppercase text-muted">
-              <th className="py-2 pr-3 font-medium">Mahsulot</th>
-              <th className="py-2 pr-3 font-medium">Kategoriya</th>
-              <th className="py-2 pr-3 font-medium">Narx</th>
-              <th className="py-2 pr-3 font-medium">Zaxira</th>
-              <th className="py-2 pr-3 font-medium">Holat</th>
-              <th className="py-2 pr-3 font-medium text-right">Amallar</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((p) => (
-              <tr key={p.id} className="border-b border-border/60 last:border-0">
-                <td className="py-2.5 pr-3">
-                  <div className="flex items-center gap-2.5">
-                    <ProductImage src={p.imageUrl} name={p.name} className="h-10 w-10 shrink-0 rounded-lg text-sm" />
-                    <div>
-                      <div className="font-medium">{p.name}</div>
-                      <div className="text-xs text-muted">{p.sku}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-2.5 pr-3 text-muted">{p.category?.name ?? "—"}</td>
-                <td className="py-2.5 pr-3 font-medium">{formatSom(p.price)}</td>
-                <td className="py-2.5 pr-3">{p.stock} dona</td>
-                <td className="py-2.5 pr-3">{stockBadge(p)}</td>
-                <td className="py-2.5 pr-3">
-                  <div className="flex justify-end gap-1.5">
-                    <button
-                      onClick={() => openEdit(p)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-accent"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => remove(p.id)}
-                      disabled={deletingId === p.id}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-danger disabled:opacity-50"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
+      <div className="mt-4">
+        {filtered.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted">Hech narsa topilmadi</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {filtered.map((p) => (
+              <div
+                key={p.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openEdit(p)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openEdit(p);
+                  }
+                }}
+                className="relative flex cursor-pointer flex-col items-start gap-2 rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-accent"
+              >
+                <div className="absolute right-2 top-2 flex gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEdit(p);
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted/90 text-foreground backdrop-blur hover:text-accent"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      remove(p.id);
+                    }}
+                    disabled={deletingId === p.id}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted/90 text-foreground backdrop-blur hover:text-danger disabled:opacity-50"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+
+                <ProductImage src={p.imageUrl} name={p.name} className="aspect-square w-full rounded-lg text-xl" />
+                <span className="line-clamp-2 text-sm font-semibold leading-snug">{p.name}</span>
+                <span className="text-xs text-muted">{p.sku}</span>
+                {p.category && <span className="text-xs text-muted">{p.category.name}</span>}
+                <div className="flex flex-wrap items-center gap-1">
+                  {stockBadge(p)}
+                  {p.onSale && p.salePrice && <Badge tone="danger">Chegirma</Badge>}
+                </div>
+                {p.onSale && p.salePrice ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-danger">{formatSom(p.salePrice)}</span>
+                    <span className="text-xs text-muted line-through">{formatSom(p.price)}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-bold text-foreground">{formatSom(p.price)}</span>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

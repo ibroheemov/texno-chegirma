@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Customer } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Pencil, Trash2, Phone, Users, AlertCircle, Landmark, Clock, ShoppingBag } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Phone, Users, AlertCircle, Landmark, Clock, ShoppingBag, History } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { cn } from "@/lib/cn";
 import { formatSom } from "@/lib/format";
 import { CustomerFormModal } from "./CustomerFormModal";
+import { CustomerPurchasesModal } from "./CustomerPurchasesModal";
 import type { CustomerRow } from "@/lib/types";
 
 export type { CustomerRow };
@@ -24,6 +25,7 @@ export function CustomerTable({ initialCustomers }: { initialCustomers: Customer
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [error, setError] = useState("");
+  const [purchasesCustomer, setPurchasesCustomer] = useState<CustomerRow | null>(null);
 
   const stats = useMemo(() => {
     const debtors = initialCustomers.filter((c) => c.debt > 0);
@@ -114,69 +116,97 @@ export function CustomerTable({ initialCustomers }: { initialCustomers: Customer
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((c) => (
-          <div key={c.id} className="rounded-xl border border-border p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-sm font-bold text-accent">
-                  {c.name.slice(0, 1).toUpperCase()}
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-muted">
+              <th className="pb-2 pr-3 font-medium">Mijoz</th>
+              <th className="pb-2 pr-3 font-medium">Telefon</th>
+              <th className="pb-2 pr-3 font-medium">Manzil</th>
+              <th className="pb-2 pr-3 text-right font-medium">
+                <span className="inline-flex items-center justify-end gap-1">
+                  <ShoppingBag size={11} /> Buyurtmalar
                 </span>
-                <div>
-                  <p className="text-sm font-semibold">{c.name}</p>
-                  {c.phone && (
-                    <p className="flex items-center gap-1 text-xs text-muted">
+              </th>
+              <th className="pb-2 pr-3 text-right font-medium">Jami xaridlar</th>
+              <th className="pb-2 pr-3 font-medium">Nasiya qarzi</th>
+              <th className="pb-2 text-right font-medium">Amallar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c) => (
+              <tr key={c.id} className="border-b border-border/60 last:border-0">
+                <td className="py-2.5 pr-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent">
+                      {c.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className="truncate text-sm font-medium">{c.name}</span>
+                  </div>
+                </td>
+                <td className="py-2.5 pr-3 text-muted">
+                  {c.phone ? (
+                    <span className="flex items-center gap-1 whitespace-nowrap">
                       <Phone size={11} /> {c.phone}
-                    </p>
+                    </span>
+                  ) : (
+                    "—"
                   )}
-                  {c.address && <p className="text-xs text-muted">{c.address}</p>}
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => {
-                    setEditing(c);
-                    setModalOpen(true);
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-accent"
-                >
-                  <Pencil size={12} />
-                </button>
-                <button
-                  onClick={() => remove(c.id)}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-danger"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between border-t border-dashed border-border pt-3 text-xs">
-              <span className="flex items-center gap-1 text-muted">
-                <ShoppingBag size={11} /> Buyurtmalar
-              </span>
-              <span className="font-semibold">{c.ordersCount}</span>
-            </div>
-            <div className="mt-1.5 flex items-center justify-between text-xs">
-              <span className="text-muted">Jami xaridlar</span>
-              <span className="font-semibold">{formatSom(c.totalSpent)}</span>
-            </div>
-            <div className="mt-1.5 flex items-center justify-between text-xs">
-              <span className="text-muted">Nasiya qarzi</span>
-              {c.debt > 0 ? (
-                <Badge tone={c.overdue ? "danger" : c.dueSoon ? "warning" : "danger"}>
-                  {formatSom(c.debt)}
-                  {c.overdue ? " · muddati o'tgan" : c.dueSoon ? " · muddati yaqin" : ""}
-                </Badge>
-              ) : (
-                <Badge tone="accent">Qarzi yo&apos;q</Badge>
-              )}
-            </div>
-          </div>
-        ))}
+                </td>
+                <td className="max-w-[180px] truncate py-2.5 pr-3 text-muted">{c.address || "—"}</td>
+                <td className="py-2.5 pr-3 text-right font-semibold">{c.ordersCount}</td>
+                <td className="whitespace-nowrap py-2.5 pr-3 text-right font-semibold">
+                  {formatSom(c.totalSpent)}
+                </td>
+                <td className="py-2.5 pr-3">
+                  {c.debt > 0 ? (
+                    <Badge tone={c.overdue ? "danger" : c.dueSoon ? "warning" : "danger"}>
+                      {formatSom(c.debt)}
+                      {c.overdue ? " · muddati o'tgan" : c.dueSoon ? " · muddati yaqin" : ""}
+                    </Badge>
+                  ) : (
+                    <Badge tone="accent">Qarzi yo&apos;q</Badge>
+                  )}
+                </td>
+                <td className="py-2.5">
+                  <div className="flex justify-end gap-1">
+                    <button
+                      onClick={() => setPurchasesCustomer(c)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-accent"
+                      aria-label="Xaridlar tarixi"
+                      title="Xaridlar tarixi"
+                    >
+                      <History size={12} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditing(c);
+                        setModalOpen(true);
+                      }}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-accent"
+                      aria-label="Tahrirlash"
+                      title="Tahrirlash"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => remove(c.id)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-danger"
+                      aria-label="O'chirish"
+                      title="O'chirish"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <p className="py-10 text-center text-sm text-muted">Hech narsa topilmadi</p>
+        )}
       </div>
-      {filtered.length === 0 && (
-        <p className="py-10 text-center text-sm text-muted">Hech narsa topilmadi</p>
-      )}
 
       <CustomerFormModal
         open={modalOpen}
@@ -185,6 +215,12 @@ export function CustomerTable({ initialCustomers }: { initialCustomers: Customer
         customer={editing}
       />
       </Card>
+      <CustomerPurchasesModal
+        open={!!purchasesCustomer}
+        onClose={() => setPurchasesCustomer(null)}
+        customerId={purchasesCustomer?.id ?? null}
+        customerName={purchasesCustomer?.name ?? ""}
+      />
     </div>
   );
 }

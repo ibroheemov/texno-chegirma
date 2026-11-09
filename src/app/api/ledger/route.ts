@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { SUPPLIER_PAYMENT_CATEGORY, SALE_CANCEL_CATEGORY } from "@/lib/stats";
 
 function periodStart(period: string) {
   const now = new Date();
@@ -38,6 +39,33 @@ export async function GET(req: NextRequest) {
   const cardOut = entries.filter((e) => e.method === "CARD" && e.direction === "OUT").reduce((s, e) => s + e.amount, 0);
   const mixedIn = entries.filter((e) => e.method === "MIXED" && e.direction === "IN").reduce((s, e) => s + e.amount, 0);
 
+  // "Naqd qoldiq" / "Karta qoldiq" are a running all-time balance, not scoped
+  // to the selected period, so they're computed separately from `entries`.
+  const [cashInAllAgg, cashOutAllAgg, cardInAllAgg, cardOutAllAgg, handedOverAllAgg] = await Promise.all([
+    prisma.ledgerEntry.aggregate({
+      where: { storeId: session.storeId, method: "CASH", direction: "IN" },
+      _sum: { amount: true },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: { storeId: session.storeId, method: "CASH", direction: "OUT" },
+      _sum: { amount: true },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: { storeId: session.storeId, method: "CARD", direction: "IN" },
+      _sum: { amount: true },
+    }),
+    prisma.ledgerEntry.aggregate({
+      where: { storeId: session.storeId, method: "CARD", direction: "OUT" },
+      _sum: { amount: true },
+    }),
+    prisma.cashHandover.aggregate({
+      where: { storeId: session.storeId, status: "APPROVED" },
+      _sum: { cashAmount: true },
+    }),
+  ]);
+  const cashBalance = (cashInAllAgg._sum.amount ?? 0) - (cashOutAllAgg._sum.amount ?? 0) - (handedOverAllAgg._sum.cashAmount ?? 0);
+  const cardBalance = (cardInAllAgg._sum.amount ?? 0) - (cardOutAllAgg._sum.amount ?? 0);
+
   const creditOutstanding = await prisma.creditLedger.aggregate({
     where: { storeId: session.storeId },
     _sum: { totalAmount: true, paidAmount: true },
@@ -45,15 +73,21 @@ export async function GET(req: NextRequest) {
   const creditTotal = creditOutstanding._sum.totalAmount ?? 0;
   const creditPaid = creditOutstanding._sum.paidAmount ?? 0;
 
-  const handedOverAgg = await prisma.cashHandover.aggregate({
+  // "Chiqarilgan" is all-time total operating expenses — OUT entries that
+  // aren't inventory purchases (already counted via costPrice/profit) or
+  // sale-cancellation reversals, matching the Chiqim tab's definition.
+  const expensesAgg = await prisma.ledgerEntry.aggregate({
     where: {
       storeId: session.storeId,
-      status: "APPROVED",
-      ...(start ? { createdAt: { gte: start } } : {}),
+      direction: "OUT",
+      OR: [
+        { category: null },
+        { AND: [{ category: { not: SUPPLIER_PAYMENT_CATEGORY } }, { category: { not: SALE_CANCEL_CATEGORY } }] },
+      ],
     },
-    _sum: { cashAmount: true },
+    _sum: { amount: true },
   });
-  const handedOver = handedOverAgg._sum.cashAmount ?? 0;
+  const expenses = expensesAgg._sum.amount ?? 0;
 
   const profitAgg = await prisma.sale.aggregate({
     where: {
@@ -68,13 +102,14 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     entries,
     balances: {
-      cash: cashIn - cashOut - handedOver,
-      card: cardIn - cardOut,
+      cash: cashBalance,
+      card: cardBalance,
+      kassa: cashBalance + cardBalance,
       mixed: mixedIn,
       creditOutstanding: creditTotal - creditPaid,
       totalIn: cashIn + cardIn + mixedIn,
       totalOut: cashOut + cardOut,
-      handedOver,
+      expenses,
       profit,
     },
   });

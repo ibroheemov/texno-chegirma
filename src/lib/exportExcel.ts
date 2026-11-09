@@ -5,18 +5,43 @@ type ProductRow = Product & { category: Category | null };
 export async function exportProductsToExcel(products: ProductRow[]) {
   const XLSX = await import("xlsx");
 
-  const rows = products.map((p) => ({
-    Nomi: p.name,
-    Kategoriya: p.category?.name ?? "",
-    "Shtrix kod": p.sku,
-    "Tan narx (so'm)": p.costPrice,
-    "Sotuv narxi (so'm)": p.price,
-    Qoldiq: p.stock,
-    "Kam qoldi chegarasi": p.lowStockAt,
-  }));
+  const rows = products.map((p) => {
+    const images = Array.isArray(p.images) ? (p.images as string[]).filter((u) => typeof u === "string") : [];
+    return {
+      Nomi: p.name,
+      Kategoriya: p.category?.name ?? "",
+      "Shtrix kod": p.sku,
+      "Barkod narxi (so'm)": p.barcodePrice ?? "",
+      "Tan narx (so'm)": p.costPrice,
+      "Sotuv narxi (so'm)": p.price,
+      "Chegirma qo'llangan": p.onSale ? "Ha" : "Yo'q",
+      "Chegirmali narx (so'm)": p.salePrice ?? "",
+      Qoldiq: p.stock,
+      "O'lchov birligi": p.unit,
+      "Kam qoldi chegarasi": p.lowStockAt,
+      "Rasmlar soni": images.length,
+      "Qo'shilgan sana": new Date(p.createdAt).toLocaleString("en-GB"),
+      "Yangilangan sana": new Date(p.updatedAt).toLocaleString("en-GB"),
+    };
+  });
 
   const sheet = XLSX.utils.json_to_sheet(rows);
-  sheet["!cols"] = [{ wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 16 }];
+  sheet["!cols"] = [
+    { wch: 30 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 10 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 18 },
+  ];
 
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, "Ombor");

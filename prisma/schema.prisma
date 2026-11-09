@@ -83,8 +83,12 @@ model OnlineOrder {
   total           Int
   paymentMethod   PaymentMethod @default(CASH)
   status          OrderStatus   @default(PENDING)
+  source          String        @default("ONLINE")
+  saleId          String?       @unique
+  sale            Sale?         @relation(fields: [saleId], references: [id])
   courierId       String?
   courier         Employee?     @relation(fields: [courierId], references: [id])
+  deliveryDate    DateTime?
   createdAt       DateTime      @default(now())
 
   @@index([storeId, status])
@@ -124,6 +128,7 @@ model Product {
   stock       Int      @default(0)
   lowStockAt  Int      @default(3)
   imageUrl    String?
+  images      Json?
   unit         String   @default("dona")
   barcodePrice Int?
   onSale       Boolean  @default(false)
@@ -174,6 +179,7 @@ model Sale {
   items       SaleItem[]
   creditDebt  CreditLedger?
   ledgerEntry LedgerEntry?
+  deliveryOrder OnlineOrder?
 
   @@index([storeId, createdAt])
 }
@@ -278,8 +284,12 @@ model GoodsReceipt {
   productName   String
   qty           Int
   totalCost     Int
+  currency      String        @default("som")
+  costUsd       Float?
+  usdRate       Int?
   paymentMethod PaymentMethod
   paidAmount    Int           @default(0)
+  paidUsd       Float         @default(0)
   createdAt     DateTime      @default(now())
 
   @@index([storeId, supplierId])

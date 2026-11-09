@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getInventorySummary } from "@/lib/stats";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
 import { InventorySummaryCards } from "@/components/inventory/InventorySummaryCards";
+import { TopSellingProducts } from "@/components/inventory/TopSellingProducts";
 
 export default async function OmborPage() {
   const session = await getSession();
@@ -26,6 +27,7 @@ export default async function OmborPage() {
         creditGoodsCost={summary.creditGoodsCost}
         outstandingDebt={summary.outstandingDebt}
       />
+      <TopSellingProducts />
       <InventoryTable initialProducts={products} categories={categories} />
     </div>
   );

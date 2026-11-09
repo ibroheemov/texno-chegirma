@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Product, Category, Customer } from "@prisma/client";
-import { Search, Plus, Minus, Trash2, ScanBarcode, Loader2, CheckCircle2, X, Printer } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  ScanBarcode,
+  Loader2,
+  CheckCircle2,
+  X,
+  Printer,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +23,7 @@ import { formatSom } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useRouter } from "next/navigation";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
+import { DeliveryDatePicker, DeliveryTimePicker } from "./DeliveryDateTimeFields";
 import { ReceiptModal } from "./ReceiptModal";
 import { MixedPaymentModal } from "./MixedPaymentModal";
 import { printReceipt, type ReceiptSettings, type ReceiptSale } from "@/lib/receipt";
@@ -35,6 +48,13 @@ function stockBadge(p: Product) {
   if (p.stock <= 0) return <Badge tone="danger">Tugagan</Badge>;
   if (p.stock <= p.lowStockAt) return <Badge tone="warning">Kam qoldi · {p.stock}</Badge>;
   return <Badge tone="accent">{p.stock} dona</Badge>;
+}
+
+function productImages(p: Product): string[] {
+  if (Array.isArray(p.images) && p.images.length) {
+    return p.images.filter((u): u is string => typeof u === "string");
+  }
+  return p.imageUrl ? [p.imageUrl] : [];
 }
 
 export function PosView({
@@ -67,6 +87,10 @@ export function PosView({
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
   const [newCustomerNote, setNewCustomerNote] = useState("");
+  const [needsDelivery, setNeedsDelivery] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryTime, setDeliveryTime] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [mixedCash, setMixedCash] = useState(0);
   const [mixedCard, setMixedCard] = useState(0);
@@ -78,6 +102,8 @@ export function PosView({
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [lightboxProduct, setLightboxProduct] = useState<ProductWithCategory | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lastSale, setLastSale] = useState<LastSale | null>(null);
   const [receiptPreviewOpen, setReceiptPreviewOpen] = useState(false);
 
@@ -160,6 +186,8 @@ export function PosView({
   );
   const mixedEntered = mixedCash + mixedCard + mixedCredit + mixedCustomTotal;
 
+  const lightboxImages = lightboxProduct ? productImages(lightboxProduct) : [];
+
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === customerId) ?? null,
     [customers, customerId]
@@ -186,6 +214,10 @@ export function PosView({
     }
     if (customerMode === "new" && !newCustomerName.trim()) {
       setError("Mijoz ismini kiriting");
+      return;
+    }
+    if (needsDelivery && (!deliveryDate || !deliveryTime)) {
+      setError("Yetkazib berish sanasi va vaqtini tanlang");
       return;
     }
     setSubmitting(true);
@@ -237,6 +269,9 @@ export function PosView({
         cardAmount,
         creditAmount,
         customAmounts,
+        needsDelivery,
+        deliveryAddress: deliveryAddress.trim(),
+        deliveryDate: needsDelivery ? `${deliveryDate}T${deliveryTime}` : undefined,
       }),
     });
     setSubmitting(false);
@@ -263,6 +298,10 @@ export function PosView({
     setNewCustomerPhone("");
     setNewCustomerAddress("");
     setNewCustomerNote("");
+    setNeedsDelivery(false);
+    setDeliveryAddress("");
+    setDeliveryDate("");
+    setDeliveryTime("");
     setMethod("CASH");
     setMixedCash(0);
     setMixedCard(0);
@@ -359,20 +398,40 @@ export function PosView({
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {products.map((p) => (
-                <button
+                <div
                   key={p.id}
-                  onClick={() => addToCart(p)}
-                  disabled={p.stock <= 0}
-                  className="flex flex-col items-start gap-2 rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  className={cn(
+                    "flex flex-col items-start gap-2 rounded-xl border border-border bg-surface p-3 text-left",
+                    p.stock <= 0 && "opacity-50"
+                  )}
                 >
-                  <ProductImage
-                    src={p.imageUrl}
-                    name={p.name}
-                    className="aspect-square w-full rounded-lg text-xl"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!productImages(p).length) return;
+                      setLightboxProduct(p);
+                      setLightboxIndex(0);
+                    }}
+                    className={cn("w-full", productImages(p).length ? "cursor-zoom-in" : "cursor-default")}
+                    aria-label={productImages(p).length ? `${p.name} rasmini kattalashtirish` : undefined}
+                  >
+                    <ProductImage
+                      src={p.imageUrl}
+                      name={p.name}
+                      className="aspect-square w-full rounded-lg text-xl"
+                    />
+                  </button>
                   <div className="flex w-full items-start justify-between gap-1">
                     <span className="line-clamp-2 text-sm font-semibold leading-snug">{p.name}</span>
-                    <Plus size={16} className="shrink-0 text-accent" />
+                    <button
+                      type="button"
+                      onClick={() => addToCart(p)}
+                      disabled={p.stock <= 0}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`${p.name} savatchaga qo'shish`}
+                    >
+                      <Plus size={14} />
+                    </button>
                   </div>
                   <span className="text-xs text-muted">{p.sku}</span>
                   <div className="flex flex-wrap items-center gap-1">
@@ -387,7 +446,7 @@ export function PosView({
                   ) : (
                     <span className="text-sm font-bold text-foreground">{formatSom(p.price)}</span>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -559,6 +618,50 @@ export function PosView({
           )}
         </div>
 
+        <div className="mt-3 flex flex-col gap-1.5">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={needsDelivery}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setNeedsDelivery(checked);
+                if (checked && !deliveryAddress) {
+                  setDeliveryAddress(
+                    (customerMode === "existing" ? selectedCustomer?.address : newCustomerAddress) || ""
+                  );
+                }
+              }}
+              className="h-4 w-4 accent-[var(--accent)]"
+            />
+            Yetkazib berish kerak
+          </label>
+          {needsDelivery && (
+            <>
+              <input
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                placeholder="Yetkazib berish manzili (ixtiyoriy)"
+                className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1 text-xs text-muted">
+                  Yetkazib berish sanasi *
+                  <DeliveryDatePicker
+                    value={deliveryDate}
+                    onChange={setDeliveryDate}
+                    min={new Date().toISOString().slice(0, 10)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-xs text-muted">
+                  Yetkazib berish vaqti *
+                  <DeliveryTimePicker value={deliveryTime} onChange={setDeliveryTime} />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         <div className="mt-3 grid grid-cols-3 gap-1.5">
           {([
             { kind: "method", method: "CASH", label: "Naqd" },
@@ -692,6 +795,75 @@ export function PosView({
         onChangeCustom={(name, v) => setMixedCustomAmounts((prev) => ({ ...prev, [name]: v }))}
         onConfirm={() => setMixedModalOpen(false)}
       />
+
+      {lightboxProduct && lightboxImages.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 p-4"
+          onClick={() => setLightboxProduct(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxProduct(null)}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            aria-label="Yopish"
+          >
+            <X size={20} />
+          </button>
+
+          <div className="relative flex w-full max-w-2xl items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            {lightboxImages.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setLightboxIndex((i) => (i - 1 + lightboxImages.length) % lightboxImages.length)}
+                className="absolute left-0 z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                aria-label="Oldingi rasm"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightboxImages[lightboxIndex]}
+              alt={`${lightboxProduct.name} ${lightboxIndex + 1}/${lightboxImages.length}`}
+              className="max-h-[75vh] max-w-full rounded-lg object-contain"
+            />
+            {lightboxImages.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setLightboxIndex((i) => (i + 1) % lightboxImages.length)}
+                className="absolute right-0 z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                aria-label="Keyingi rasm"
+              >
+                <ChevronRight size={20} />
+              </button>
+            )}
+          </div>
+
+          {lightboxImages.length > 1 && (
+            <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+              {lightboxImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setLightboxIndex(idx)}
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full bg-white/30",
+                    idx === lightboxIndex && "bg-white"
+                  )}
+                  aria-label={`${idx + 1}-rasm`}
+                />
+              ))}
+            </div>
+          )}
+
+          <span className="text-sm font-medium text-white">
+            {lightboxProduct.name}
+            {lightboxImages.length > 1 && (
+              <span className="text-white/60"> · {lightboxIndex + 1}/{lightboxImages.length}</span>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,13 @@ export async function POST(req: NextRequest) {
   );
   const customTotal = Object.values(customAmounts).reduce((sum, v) => sum + v, 0);
   const dueDate: string | undefined = body.dueDate;
+  const needsDelivery: boolean = Boolean(body.needsDelivery);
+  const deliveryAddress: string = typeof body.deliveryAddress === "string" ? body.deliveryAddress.trim() : "";
+  const deliveryDate: string | undefined = typeof body.deliveryDate === "string" && body.deliveryDate ? body.deliveryDate : undefined;
+
+  if (needsDelivery && !deliveryDate) {
+    return NextResponse.json({ error: "Yetkazib berish sanasini tanlang" }, { status: 400 });
+  }
 
   if (!items.length) {
     return NextResponse.json({ error: "Savatcha bo'sh" }, { status: 400 });
@@ -110,6 +117,32 @@ export async function POST(req: NextRequest) {
           dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
         },
       });
+    }
+
+    if (needsDelivery && customerId) {
+      const customer = await tx.customer.findUnique({ where: { id: customerId } });
+      if (customer) {
+        await tx.onlineOrder.create({
+          data: {
+            storeId: session.storeId,
+            saleId: created.id,
+            source: "POS",
+            customerName: customer.name,
+            customerPhone: customer.phone ?? "",
+            customerAddress: deliveryAddress || customer.address || null,
+            items: saleItemsData.map((i) => ({
+              productId: i.productId,
+              name: i.name,
+              qty: i.qty,
+              price: i.price,
+            })),
+            total,
+            paymentMethod,
+            status: "PENDING",
+            deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
+          },
+        });
+      }
     }
 
     return created;

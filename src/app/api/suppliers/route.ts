@@ -16,6 +16,7 @@ export async function GET() {
     const distinctProducts = new Set(s.receipts.map((r) => r.productId ?? r.productName)).size;
     const totalUnits = s.receipts.reduce((sum, r) => sum + r.qty, 0);
     const totalAmount = s.receipts.reduce((sum, r) => sum + r.totalCost, 0);
+    const totalUsd = s.receipts.reduce((sum, r) => sum + (r.currency === "usd" ? (r.costUsd ?? 0) : 0), 0);
     const paid = s.receipts.reduce(
       (sum, r) => sum + (r.paymentMethod === "CREDIT" ? r.paidAmount : r.totalCost),
       0
@@ -30,6 +31,7 @@ export async function GET() {
       distinctProducts,
       totalUnits,
       totalAmount,
+      totalUsd,
       cash,
       card,
       debt,

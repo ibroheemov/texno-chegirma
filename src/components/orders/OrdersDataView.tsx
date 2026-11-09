@@ -23,6 +23,8 @@ type Order = {
   total: number;
   paymentMethod: string;
   status: OrderStatus;
+  source: string;
+  deliveryDate: string | null;
   createdAt: string;
 };
 
@@ -191,6 +193,7 @@ export function OrdersDataView({ variant }: { variant: "orders" | "delivery" }) 
                   <th className="py-2 pr-3 font-medium">Summa</th>
                   <th className="py-2 pr-3 font-medium">To&apos;lov</th>
                   <th className="py-2 pr-3 font-medium">Status</th>
+                  <th className="py-2 pr-3 font-medium">Yetkazish sanasi</th>
                   <th className="py-2 pr-3 font-medium">Sana</th>
                   <th className="py-2 pr-3 font-medium text-right">Amallar</th>
                 </tr>
@@ -200,7 +203,14 @@ export function OrdersDataView({ variant }: { variant: "orders" | "delivery" }) 
                   <tr key={o.id} className="border-b border-border/60 last:border-0">
                     <td className="py-2.5 pr-3 font-mono text-xs text-muted">#{o.id.slice(-6).toUpperCase()}</td>
                     <td className="py-2.5 pr-3">
-                      <p className="font-medium">{o.customerName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium">{o.customerName}</p>
+                        {o.source === "POS" && (
+                          <Badge tone="info" className="shrink-0">
+                            Do&apos;kondan
+                          </Badge>
+                        )}
+                      </div>
                       <p className="flex items-center gap-1 text-xs text-muted">
                         <Phone size={11} /> {o.customerPhone}
                       </p>
@@ -218,6 +228,9 @@ export function OrdersDataView({ variant }: { variant: "orders" | "delivery" }) 
                     <td className="py-2.5 pr-3 text-xs text-muted">{PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}</td>
                     <td className="py-2.5 pr-3">
                       <Badge tone={STATUS_TONE[o.status]}>{STATUS_LABEL[o.status]}</Badge>
+                    </td>
+                    <td className="py-2.5 pr-3 text-xs text-muted">
+                      {o.deliveryDate ? formatDateTime(o.deliveryDate) : "—"}
                     </td>
                     <td className="py-2.5 pr-3 text-xs text-muted">{formatDateTime(o.createdAt)}</td>
                     <td className="py-2.5 pr-3">

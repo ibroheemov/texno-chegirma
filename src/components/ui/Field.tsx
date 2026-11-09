@@ -1,4 +1,5 @@
 import { InputHTMLAttributes, SelectHTMLAttributes, ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -18,11 +19,14 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className="h-10 rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-accent"
+      className={cn(
+        "h-10 rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-accent",
+        className
+      )}
     />
   );
 }

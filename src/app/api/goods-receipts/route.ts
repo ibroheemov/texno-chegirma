@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
   const qty = Math.max(1, Number(body.qty) || 0);
   const totalCost = Math.max(0, Number(body.totalCost) || 0);
   const paymentMethod = ["CASH", "CARD", "CREDIT"].includes(body.paymentMethod) ? body.paymentMethod : "CASH";
+  const currency = body.currency === "usd" ? "usd" : "som";
+  const costUsd = currency === "usd" && Number(body.costUsd) > 0 ? Number(body.costUsd) : null;
+  const usdRate = currency === "usd" && Number(body.usdRate) > 0 ? Math.round(Number(body.usdRate)) : null;
 
   if (!supplierId || !productName || !qty || !totalCost) {
     return NextResponse.json({ error: "Barcha maydonlarni to'ldiring" }, { status: 400 });
@@ -53,6 +56,9 @@ export async function POST(req: NextRequest) {
         productName,
         qty,
         totalCost,
+        currency,
+        costUsd,
+        usdRate,
         paymentMethod,
         paidAmount: paymentMethod === "CREDIT" ? 0 : totalCost,
       },

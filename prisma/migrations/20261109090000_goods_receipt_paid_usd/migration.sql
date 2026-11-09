@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "GoodsReceipt" ADD COLUMN     "paidUsd" DOUBLE PRECISION NOT NULL DEFAULT 0;

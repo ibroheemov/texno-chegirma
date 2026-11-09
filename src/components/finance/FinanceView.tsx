@@ -12,6 +12,7 @@ import {
   PackageCheck,
   Ban,
   TrendingUp,
+  Banknote,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -36,11 +37,12 @@ type Entry = {
 type Balances = {
   cash: number;
   card: number;
+  kassa: number;
   mixed: number;
   creditOutstanding: number;
   totalIn: number;
   totalOut: number;
-  handedOver: number;
+  expenses: number;
   profit: number;
 };
 
@@ -83,12 +85,13 @@ export function FinanceView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Daromad" value={formatSom(balances?.profit ?? 0)} icon={TrendingUp} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Kassa qoldiq" value={formatSom(balances?.kassa ?? 0)} icon={Banknote} />
         <StatCard label="Naqd qoldiq" value={formatSom(balances?.cash ?? 0)} icon={Wallet} />
         <StatCard label="Karta qoldiq" value={formatSom(balances?.card ?? 0)} icon={CreditCard} />
         <StatCard label="Nasiyadagi summa" value={formatSom(balances?.creditOutstanding ?? 0)} icon={Landmark} />
-        <StatCard label="Topshirilgan" value={formatSom(balances?.handedOver ?? 0)} icon={PackageCheck} />
+        <StatCard label="Chiqarilgan" value={formatSom(balances?.expenses ?? 0)} icon={PackageCheck} />
+        <StatCard label="Daromad" value={formatSom(balances?.profit ?? 0)} icon={TrendingUp} />
       </div>
 
       <Card className="p-4">

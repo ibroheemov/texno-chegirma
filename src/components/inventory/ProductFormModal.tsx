@@ -5,8 +5,9 @@ import type { Category, Product } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 import { ProductImage } from "@/components/ui/ProductImage";
-import { Loader2, ScanBarcode, Keyboard, ArrowRight, Pencil, Upload, Camera } from "lucide-react";
+import { Loader2, ScanBarcode, Keyboard, ArrowRight, Pencil, Upload, Camera, Plus, X } from "lucide-react";
 import { BarcodeScannerModal } from "@/components/pos/BarcodeScannerModal";
 import { cn } from "@/lib/cn";
 
@@ -38,14 +39,23 @@ export function ProductFormModal({
   const [price, setPrice] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [currency, setCurrency] = useState<"SOM" | "USD">("SOM");
-  const [usdRate, setUsdRate] = useState<number | null>(null);
+  const [usdRateInput, setUsdRateInput] = useState("");
   const [stock, setStock] = useState("");
   const [unit, setUnit] = useState<UnitOption>("dona");
   const [lowStockAt, setLowStockAt] = useState("3");
   const [categoryId, setCategoryId] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [categoryList, setCategoryList] = useState<Category[]>(categories);
+  const [newCategoryModalOpen, setNewCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState("");
+  const [newSupplierModalOpen, setNewSupplierModalOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierPhone, setNewSupplierPhone] = useState("");
+  const [savingSupplier, setSavingSupplier] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "CREDIT">("CASH");
   const [barcodePrice, setBarcodePrice] = useState("");
   const [onSale, setOnSale] = useState(false);
@@ -62,12 +72,26 @@ export function ProductFormModal({
       setPrice(product ? String(product.price) : "");
       setCostPrice(product ? String(product.costPrice) : "");
       setCurrency("SOM");
+      setUsdRateInput("");
       setStock(product ? String(product.stock) : "");
       setUnit((product?.unit as UnitOption) ?? "dona");
       setLowStockAt(product ? String(product.lowStockAt) : "3");
       setCategoryId(product?.categoryId ?? "");
-      setImageUrl(product?.imageUrl ?? "");
+      setCategoryList(categories);
+      setNewCategoryModalOpen(false);
+      setNewCategoryName("");
+      setImages(
+        Array.isArray(product?.images) && product.images.length
+          ? (product.images as string[])
+          : product?.imageUrl
+            ? [product.imageUrl]
+            : []
+      );
+      setNewImageUrl("");
       setSupplierId("");
+      setNewSupplierModalOpen(false);
+      setNewSupplierName("");
+      setNewSupplierPhone("");
       setPaymentMethod("CASH");
       setBarcodePrice(product?.barcodePrice != null ? String(product.barcodePrice) : "");
       setOnSale(product?.onSale ?? false);
@@ -85,7 +109,10 @@ export function ProductFormModal({
       .catch(() => {});
     fetch("/api/store")
       .then((r) => r.json())
-      .then((d) => setUsdRate(d.store?.usdRate ?? null))
+      .then((d) => {
+        const rate = d.store?.usdRate ?? null;
+        setUsdRateInput((prev) => prev || (rate ? String(rate) : ""));
+      })
       .catch(() => {});
   }, [open]);
 
@@ -99,14 +126,78 @@ export function ProductFormModal({
     return `AUTO-${Date.now().toString(36).toUpperCase()}`;
   }
 
-  function pickImage(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => setImageUrl(String(reader.result));
-    reader.readAsDataURL(file);
+  function pickImages(files: FileList) {
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => setImages((prev) => [...prev, String(reader.result)]);
+      reader.readAsDataURL(file);
+    });
   }
 
+  function addImageUrl() {
+    const url = newImageUrl.trim();
+    if (!url) return;
+    setImages((prev) => [...prev, url]);
+    setNewImageUrl("");
+  }
+
+  function removeImage(index: number) {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function addCategory() {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return;
+    setSavingCategory(true);
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    const data = await res.json();
+    setSavingCategory(false);
+    if (!res.ok) {
+      setError(data.error ?? "Xatolik yuz berdi");
+      return;
+    }
+    setCategoryList((prev) => [...prev, data.category].sort((a, b) => a.name.localeCompare(b.name)));
+    setCategoryId(data.category.id);
+    setNewCategoryName("");
+    setNewCategoryModalOpen(false);
+  }
+
+  async function addSupplier() {
+    const trimmed = newSupplierName.trim();
+    if (!trimmed) return;
+    setSavingSupplier(true);
+    const res = await fetch("/api/suppliers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: trimmed, phone: newSupplierPhone.trim() || undefined }),
+    });
+    const data = await res.json();
+    setSavingSupplier(false);
+    if (!res.ok) {
+      setError(data.error ?? "Xatolik yuz berdi");
+      return;
+    }
+    setSuppliers((prev) => [...prev, data.supplier].sort((a, b) => a.name.localeCompare(b.name)));
+    setSupplierId(data.supplier.id);
+    setNewSupplierName("");
+    setNewSupplierPhone("");
+    setNewSupplierModalOpen(false);
+  }
+
+  const parsedUsdRate = Number(usdRateInput || 0);
   const effectiveCostPrice =
-    currency === "USD" && usdRate ? Math.round(Number(costPrice || 0) * usdRate) : Number(costPrice || 0);
+    currency === "USD" && parsedUsdRate > 0
+      ? Math.round(Number(costPrice || 0) * parsedUsdRate)
+      : Number(costPrice || 0);
+
+  const discountPercent =
+    onSale && Number(price) > 0 && Number(salePrice) > 0 && Number(salePrice) < Number(price)
+      ? Math.round(((Number(price) - Number(salePrice)) / Number(price)) * 100)
+      : null;
 
   async function save() {
     setError("");
@@ -124,11 +215,19 @@ export function ProductFormModal({
       unit,
       lowStockAt,
       categoryId,
-      imageUrl,
+      images,
       barcodePrice: barcodePrice || null,
       onSale,
       salePrice: onSale ? salePrice : null,
-      ...(isEdit ? {} : { supplierId: supplierId || undefined, paymentMethod }),
+      ...(isEdit
+        ? {}
+        : {
+            supplierId: supplierId || undefined,
+            paymentMethod,
+            currency: currency === "USD" ? "usd" : "som",
+            costUsd: currency === "USD" ? Number(costPrice || 0) : undefined,
+            usdRate: currency === "USD" ? parsedUsdRate : undefined,
+          }),
     };
     const res = await fetch(product ? `/api/products/${product.id}` : "/api/products", {
       method: product ? "PATCH" : "POST",
@@ -190,6 +289,7 @@ export function ProductFormModal({
   }
 
   return (
+    <>
     <Modal
       open={open}
       onClose={onClose}
@@ -205,24 +305,55 @@ export function ProductFormModal({
           </div>
         )}
 
-        <Field label="Rasm">
-          <div className="flex items-center gap-2">
-            <ProductImage src={imageUrl} name={name || "?"} className="h-12 w-12 shrink-0 rounded-lg" />
-            <Button type="button" size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
-              <Upload size={14} /> Rasm yuklash
-            </Button>
-            <Input
-              value={imageUrl.startsWith("data:") ? "" : imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="yoki havola (URL)"
-            />
+        <Field label="Rasmlar">
+          <div className="flex flex-wrap gap-2">
+            {images.map((img, idx) => (
+              <div key={idx} className="group relative h-16 w-16 shrink-0">
+                <ProductImage src={img} name={name || "?"} className="h-16 w-16 rounded-lg" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(idx)}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-muted hover:border-accent hover:text-accent"
+            >
+              <Upload size={16} />
+              <span className="text-[10px]">Yuklash</span>
+            </button>
             <input
               ref={fileRef}
               type="file"
               accept="image/*"
+              multiple
               className="hidden"
-              onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])}
+              onChange={(e) => {
+                if (e.target.files?.length) pickImages(e.target.files);
+                e.target.value = "";
+              }}
             />
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Input
+              value={newImageUrl}
+              onChange={(e) => setNewImageUrl(e.target.value)}
+              placeholder="yoki havola (URL)"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addImageUrl();
+                }
+              }}
+            />
+            <Button type="button" size="sm" variant="secondary" onClick={addImageUrl}>
+              <Plus size={14} />
+            </Button>
           </div>
         </Field>
 
@@ -237,27 +368,37 @@ export function ProductFormModal({
         </Field>
 
         <Field label="Kategoriya">
-          <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">Tanlang</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full flex-1">
+              <option value="">Tanlang</option>
+              {categoryList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+            <Button type="button" size="sm" variant="secondary" onClick={() => setNewCategoryModalOpen(true)}>
+              <Plus size={14} />
+            </Button>
+          </div>
         </Field>
 
         {!isEdit && (
           <>
             <Field label="Tovar beruvchi">
-              <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-                <option value="">Tanlanmagan</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="w-full flex-1">
+                  <option value="">Tanlanmagan</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+                <Button type="button" size="sm" variant="secondary" onClick={() => setNewSupplierModalOpen(true)}>
+                  <Plus size={14} />
+                </Button>
+              </div>
             </Field>
             {supplierId && (
               <Field label="To'lov usuli">
@@ -302,28 +443,47 @@ export function ProductFormModal({
             <button
               type="button"
               onClick={() => setCurrency("USD")}
-              disabled={!usdRate}
               className={cn(
-                "rounded-lg border border-border py-2 text-xs font-medium text-muted disabled:opacity-40",
+                "rounded-lg border border-border py-2 text-xs font-medium text-muted",
                 currency === "USD" && "border-accent bg-accent-soft text-accent"
               )}
-              title={!usdRate ? "Sozlamalar → Dollar kursini kiriting" : undefined}
             >
               Dollar
             </button>
           </div>
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={currency === "USD" ? "Tan narxi ($)" : "Tan narxi (so'm)"}>
-            <Input type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
-          </Field>
-          <Field label="Sotish narxi (so'm)">
-            <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
-          </Field>
-        </div>
-        {currency === "USD" && usdRate && costPrice && (
-          <p className="-mt-2 text-xs text-muted">≈ {effectiveCostPrice.toLocaleString("en-US")} so&apos;m</p>
+        {currency === "USD" ? (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Narx ($)">
+                <Input type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
+              </Field>
+              <Field label="Kurs (1$=?so'm)">
+                <Input type="number" value={usdRateInput} onChange={(e) => setUsdRateInput(e.target.value)} />
+              </Field>
+              <Field label="Jami (so'm)">
+                <Input
+                  type="text"
+                  value={effectiveCostPrice ? effectiveCostPrice.toLocaleString("en-US") : ""}
+                  readOnly
+                  disabled
+                />
+              </Field>
+            </div>
+            <Field label="Sotish narxi (so'm)">
+              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </Field>
+          </>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tan narxi (so'm)">
+              <Input type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
+            </Field>
+            <Field label="Sotish narxi (so'm)">
+              <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </Field>
+          </div>
         )}
 
         <label className="flex items-center gap-2 text-sm">
@@ -338,6 +498,13 @@ export function ProductFormModal({
         {onSale && (
           <Field label="Chegirmali narx (so'm)">
             <Input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} />
+            {discountPercent !== null && (
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                <span className="text-muted line-through">{Number(price).toLocaleString("en-US")} so&apos;m</span>
+                <span className="font-semibold text-accent">{Number(salePrice).toLocaleString("en-US")} so&apos;m</span>
+                <Badge tone="danger">-{discountPercent}%</Badge>
+              </div>
+            )}
           </Field>
         )}
         <p className="-mt-2 text-xs text-muted">
@@ -380,5 +547,41 @@ export function ProductFormModal({
         </div>
       </div>
     </Modal>
+
+    <Modal open={newCategoryModalOpen} onClose={() => setNewCategoryModalOpen(false)} title="Yangi kategoriya">
+      <div className="flex flex-col gap-3">
+        <Input
+          value={newCategoryName}
+          onChange={(e) => setNewCategoryName(e.target.value)}
+          placeholder="Kategoriya nomi..."
+          autoFocus
+        />
+        <Button onClick={addCategory} disabled={savingCategory || !newCategoryName.trim()}>
+          {savingCategory && <Loader2 size={16} className="animate-spin" />}
+          Qo&apos;shish
+        </Button>
+      </div>
+    </Modal>
+
+    <Modal open={newSupplierModalOpen} onClose={() => setNewSupplierModalOpen(false)} title="Yangi tovar beruvchi">
+      <div className="flex flex-col gap-3">
+        <Input
+          value={newSupplierName}
+          onChange={(e) => setNewSupplierName(e.target.value)}
+          placeholder="Nomi"
+          autoFocus
+        />
+        <Input
+          value={newSupplierPhone}
+          onChange={(e) => setNewSupplierPhone(e.target.value)}
+          placeholder="Telefon (ixtiyoriy)"
+        />
+        <Button onClick={addSupplier} disabled={savingSupplier || !newSupplierName.trim()}>
+          {savingSupplier && <Loader2 size={16} className="animate-spin" />}
+          Qo&apos;shish
+        </Button>
+      </div>
+    </Modal>
+    </>
   );
 }
