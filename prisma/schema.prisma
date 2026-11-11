@@ -17,6 +17,7 @@ enum PaymentMethod {
   CARD
   CREDIT
   MIXED
+  CUSTOM
 }
 
 enum LedgerDirection {
@@ -28,6 +29,11 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   LATE
+}
+
+enum SalaryType {
+  MONTHLY
+  DAILY
 }
 
 enum OrderStatus {
@@ -57,6 +63,7 @@ model Store {
   telegramBotToken    String?
   telegramChatId      String?
   customPaymentMethods Json?
+  deferredPaymentMethods Json?
   createdAt DateTime @default(now())
 
   users      User[]
@@ -68,6 +75,7 @@ model Store {
   employees  Employee[]
   orders     OnlineOrder[]
   suppliers  Supplier[]
+  settlements ThirdPartySettlement[]
   receipts   GoodsReceipt[]
   handovers  CashHandover[]
 }
@@ -165,6 +173,8 @@ model Sale {
   store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customerId    String?
   customer      Customer?     @relation(fields: [customerId], references: [id])
+  soldById      String?
+  soldBy        Employee?     @relation(fields: [soldById], references: [id], onDelete: SetNull)
   total         Int
   paymentMethod PaymentMethod
   cashAmount    Int           @default(0)
@@ -180,8 +190,32 @@ model Sale {
   creditDebt  CreditLedger?
   ledgerEntry LedgerEntry?
   deliveryOrder OnlineOrder?
+  settlements ThirdPartySettlement[]
 
   @@index([storeId, createdAt])
+}
+
+// Tracks money owed to the store by a third-party installment company for a
+// sale paid through a payment method flagged as "deferred" in Store.deferredPaymentMethods
+// (e.g. a company that pays the customer's purchase on their behalf over several
+// working days). The sale's revenue/profit are recognized immediately as usual;
+// this amount only joins the Kassa cash/card balance once marked `received`.
+model ThirdPartySettlement {
+  id             String        @id @default(cuid())
+  storeId        String
+  store          Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  saleId         String
+  sale           Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  methodName     String
+  amount         Int
+  expectedDate   DateTime
+  received       Boolean       @default(false)
+  receivedAt     DateTime?
+  receivedMethod PaymentMethod?
+  createdAt      DateTime      @default(now())
+
+  @@index([storeId, received])
+  @@index([saleId])
 }
 
 model SaleItem {
@@ -213,11 +247,14 @@ model CreditLedger {
 }
 
 model CreditPayment {
-  id        String       @id @default(cuid())
-  ledgerId  String
-  ledger    CreditLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
-  amount    Int
-  createdAt DateTime     @default(now())
+  id         String       @id @default(cuid())
+  ledgerId   String
+  ledger     CreditLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  amount     Int
+  employeeId String?
+  employee   Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  note       String?
+  createdAt  DateTime     @default(now())
 }
 
 model LedgerEntry {
@@ -303,11 +340,12 @@ model Employee {
   phone     String?
   position  String?
   salary    Int      @default(0)
-  hourlyRate Int     @default(0)
+  salaryType SalaryType @default(MONTHLY)
   login       String?
   passwordHash String?
   isCourier   Boolean  @default(false)
   photoUrl    String?
+  faceDescriptor String?
   allowedLocationName String?
   allowedLat          Float?
   allowedLng          Float?
@@ -317,6 +355,8 @@ model Employee {
 
   attendance Attendance[]
   deliveries OnlineOrder[]
+  sales      Sale[]
+  creditPayments CreditPayment[]
 }
 
 model Attendance {
@@ -330,6 +370,7 @@ model Attendance {
   checkInLat Float?
   checkInLng Float?
   withinRange Boolean?
+  faceVerified Boolean?
 
   @@unique([employeeId, date])
 }

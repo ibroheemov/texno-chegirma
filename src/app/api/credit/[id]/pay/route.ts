@@ -17,8 +17,16 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/credit/[id]
     return NextResponse.json({ error: `To'lov summasi 1 dan ${remaining} gacha bo'lishi kerak` }, { status: 400 });
   }
 
+  const employeeId: string | undefined = body.employeeId || undefined;
+  const note: string | undefined = typeof body.note === "string" && body.note.trim() ? body.note.trim() : undefined;
+
+  if (employeeId) {
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, storeId: session.storeId } });
+    if (!employee) return NextResponse.json({ error: "Xodim topilmadi" }, { status: 400 });
+  }
+
   await prisma.$transaction([
-    prisma.creditPayment.create({ data: { ledgerId: id, amount } }),
+    prisma.creditPayment.create({ data: { ledgerId: id, amount, employeeId, note } }),
     prisma.creditLedger.update({ where: { id }, data: { paidAmount: { increment: amount } } }),
     prisma.ledgerEntry.create({
       data: {
@@ -26,7 +34,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/credit/[id]
         direction: "IN",
         amount,
         method: "CASH",
-        note: "Nasiya to'lovi",
+        note: note ? `Nasiya to'lovi: ${note}` : "Nasiya to'lovi",
       },
     }),
   ]);

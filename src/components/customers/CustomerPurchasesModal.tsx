@@ -5,18 +5,13 @@ import { Loader2, ShoppingBag } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { formatSom, formatDateTime } from "@/lib/format";
-
-const METHOD_LABEL: Record<string, string> = {
-  CASH: "Naqd",
-  CARD: "Karta",
-  CREDIT: "Nasiya",
-  MIXED: "Aralash",
-};
+import { resolveMethodLabel } from "@/lib/receipt";
 
 type SaleRow = {
   id: string;
   createdAt: string;
   paymentMethod: string;
+  customAmounts: Record<string, number> | null;
   total: number;
   canceled: boolean;
   items: { name: string; qty: number; price: number }[];
@@ -92,7 +87,7 @@ export function CustomerPurchasesModal({
                       <div className="flex items-center gap-2 text-xs text-muted">
                         <span>{formatDateTime(new Date(s.createdAt))}</span>
                         <span>·</span>
-                        <span>{METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod}</span>
+                        <span>{resolveMethodLabel(s.paymentMethod, s.customAmounts)}</span>
                         {s.canceled && <Badge tone="danger">Bekor qilingan</Badge>}
                       </div>
                       <span className={`text-sm font-semibold ${s.canceled ? "text-muted line-through" : ""}`}>

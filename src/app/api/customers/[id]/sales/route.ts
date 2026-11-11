@@ -20,6 +20,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/customers/[
     id: s.id,
     createdAt: s.createdAt,
     paymentMethod: s.paymentMethod,
+    customAmounts: s.customAmounts,
     total: s.total,
     canceled: s.canceled,
     items: s.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),

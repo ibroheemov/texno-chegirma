@@ -10,13 +10,19 @@ export async function POST(_req: NextRequest, ctx: RouteContext<"/api/sales/[id]
 
   const sale = await prisma.sale.findFirst({
     where: { id, storeId: session.storeId },
-    include: { items: true, creditDebt: true },
+    include: { items: true, creditDebt: true, settlements: true },
   });
   if (!sale) return NextResponse.json({ error: "Savdo topilmadi" }, { status: 404 });
   if (sale.canceled) return NextResponse.json({ error: "Bu savdo allaqachon bekor qilingan" }, { status: 409 });
   if (sale.creditDebt && sale.creditDebt.paidAmount > 0) {
     return NextResponse.json(
       { error: "Qisman to'langan nasiya savdosini bekor qilib bo'lmaydi" },
+      { status: 409 }
+    );
+  }
+  if (sale.settlements.some((s) => s.received)) {
+    return NextResponse.json(
+      { error: "Uchinchi tomondan to'lovi qabul qilingan savdoni bekor qilib bo'lmaydi" },
       { status: 409 }
     );
   }
@@ -36,6 +42,10 @@ export async function POST(_req: NextRequest, ctx: RouteContext<"/api/sales/[id]
 
     if (sale.creditDebt) {
       await tx.creditLedger.delete({ where: { id: sale.creditDebt.id } });
+    }
+
+    if (sale.settlements.length) {
+      await tx.thirdPartySettlement.deleteMany({ where: { saleId: sale.id } });
     }
 
     const cashBack = sale.cashAmount + sale.cardAmount;

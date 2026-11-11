@@ -2,17 +2,18 @@
 
 import { useState } from "react";
 import type { Product } from "@prisma/client";
-import { Wallet, ArrowDownLeft, ArrowUpRight, Landmark, FileBarChart, HandCoins, Truck } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, Landmark, FileBarChart, Truck, Users, Clock } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FinanceView } from "./FinanceView";
 import { KirimTab } from "./KirimTab";
 import { ChiqimTab } from "./ChiqimTab";
 import { HisobotTab } from "./HisobotTab";
-import { TopshirishTab } from "./TopshirishTab";
 import { TovarBeruvchiTab } from "./TovarBeruvchiTab";
+import { SotuvchilarTab } from "./SotuvchilarTab";
+import { SettlementsTab } from "./SettlementsTab";
 import { CreditView } from "@/components/credit/CreditView";
 
-type Tab = "kassa" | "kirim" | "chiqim" | "nasiya" | "hisobot" | "topshirish" | "tovar";
+type Tab = "kassa" | "kirim" | "chiqim" | "nasiya" | "hisobot" | "tovar" | "sotuvchilar" | "settlements";
 
 const TABS: { key: Tab; label: string; icon: typeof Wallet }[] = [
   { key: "kassa", label: "Kassa", icon: Wallet },
@@ -20,8 +21,9 @@ const TABS: { key: Tab; label: string; icon: typeof Wallet }[] = [
   { key: "chiqim", label: "Chiqim", icon: ArrowUpRight },
   { key: "nasiya", label: "Nasiya", icon: Landmark },
   { key: "hisobot", label: "Hisobot", icon: FileBarChart },
-  { key: "topshirish", label: "Topshirish", icon: HandCoins },
   { key: "tovar", label: "Tovar beruvchi", icon: Truck },
+  { key: "sotuvchilar", label: "Sotuvchilar", icon: Users },
+  { key: "settlements", label: "Kechiktirilgan to'lovlar", icon: Clock },
 ];
 
 export function MoliyaTabs({
@@ -58,10 +60,11 @@ export function MoliyaTabs({
       {tab === "chiqim" && <ChiqimTab />}
       {tab === "nasiya" && <CreditView />}
       {tab === "hisobot" && <HisobotTab />}
-      {tab === "topshirish" && <TopshirishTab />}
       {tab === "tovar" && (
         <TovarBeruvchiTab products={products} usdRate={usdRate} showDebtInUsdOnly={showDebtInUsdOnly} />
       )}
+      {tab === "sotuvchilar" && <SotuvchilarTab />}
+      {tab === "settlements" && <SettlementsTab />}
     </div>
   );
 }

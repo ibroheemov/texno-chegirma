@@ -25,6 +25,17 @@ export const METHOD_LABEL: Record<string, string> = {
   MIXED: "Aralash",
 };
 
+// A sale paid entirely through one store-defined custom payment method is
+// stored with paymentMethod "CUSTOM" (to distinguish it from a genuine
+// multi-method MIXED sale); its real label lives in customAmounts' single key.
+export function resolveMethodLabel(method: string, customAmounts?: unknown): string {
+  if (method === "CUSTOM" && customAmounts && typeof customAmounts === "object") {
+    const keys = Object.keys(customAmounts as Record<string, number>);
+    if (keys.length === 1) return keys[0];
+  }
+  return METHOD_LABEL[method] ?? method;
+}
+
 export function telegramUrl(username: string) {
   return `https://t.me/${username.replace(/^@/, "")}`;
 }

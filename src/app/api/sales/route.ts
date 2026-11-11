@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { addBusinessDays } from "@/lib/businessDays";
 
 type CartItem = { productId: string; qty: number };
 
@@ -10,8 +11,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const items: CartItem[] = body.items ?? [];
-  const paymentMethod: "CASH" | "CARD" | "CREDIT" | "MIXED" = body.paymentMethod;
+  const paymentMethod: "CASH" | "CARD" | "CREDIT" | "MIXED" | "CUSTOM" = body.paymentMethod;
   const customerId: string | undefined = body.customerId || undefined;
+  const employeeId: string | undefined = body.employeeId || undefined;
   const cashAmount: number = body.cashAmount ?? 0;
   const cardAmount: number = body.cardAmount ?? 0;
   const creditAmount: number = body.creditAmount ?? 0;
@@ -20,7 +22,19 @@ export async function POST(req: NextRequest) {
   const customAmounts = Object.fromEntries(
     Object.entries(customAmountsInput).filter(([, v]) => typeof v === "number" && v > 0)
   );
-  const customTotal = Object.values(customAmounts).reduce((sum, v) => sum + v, 0);
+  const store = await prisma.store.findUnique({
+    where: { id: session.storeId },
+    select: { deferredPaymentMethods: true },
+  });
+  const deferredConfig: Record<string, number> =
+    store?.deferredPaymentMethods && typeof store.deferredPaymentMethods === "object"
+      ? (store.deferredPaymentMethods as Record<string, number>)
+      : {};
+  const deferredEntries = Object.entries(customAmounts).filter(([name]) => name in deferredConfig);
+  const instantCustomTotal = Object.entries(customAmounts)
+    .filter(([name]) => !(name in deferredConfig))
+    .reduce((sum, [, v]) => sum + v, 0);
+
   const dueDate: string | undefined = body.dueDate;
   const needsDelivery: boolean = Boolean(body.needsDelivery);
   const deliveryAddress: string = typeof body.deliveryAddress === "string" ? body.deliveryAddress.trim() : "";
@@ -35,6 +49,11 @@ export async function POST(req: NextRequest) {
   }
   if ((paymentMethod === "CREDIT" || creditAmount > 0) && !customerId) {
     return NextResponse.json({ error: "Nasiya uchun mijoz tanlang" }, { status: 400 });
+  }
+
+  if (employeeId) {
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, storeId: session.storeId } });
+    if (!employee) return NextResponse.json({ error: "Sotuvchi topilmadi" }, { status: 400 });
   }
 
   const productIds = items.map((i) => i.productId);
@@ -76,6 +95,7 @@ export async function POST(req: NextRequest) {
       data: {
         storeId: session.storeId,
         customerId,
+        soldById: employeeId,
         total,
         profit,
         paymentMethod,
@@ -94,14 +114,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (cashAmount > 0 || cardAmount > 0 || customTotal > 0) {
+    if (cashAmount > 0 || cardAmount > 0 || instantCustomTotal > 0) {
       await tx.ledgerEntry.create({
         data: {
           storeId: session.storeId,
           saleId: created.id,
           direction: "IN",
-          amount: cashAmount + cardAmount + customTotal,
+          amount: cashAmount + cardAmount + instantCustomTotal,
           method: paymentMethod,
+        },
+      });
+    }
+
+    for (const [methodName, amount] of deferredEntries) {
+      await tx.thirdPartySettlement.create({
+        data: {
+          storeId: session.storeId,
+          saleId: created.id,
+          methodName,
+          amount,
+          expectedDate: addBusinessDays(new Date(), deferredConfig[methodName] ?? 7),
         },
       });
     }

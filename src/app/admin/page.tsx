@@ -13,7 +13,7 @@ export default async function KassaPage() {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  const [summary, prevSummary, products, categories, customers, store] = await Promise.all([
+  const [summary, prevSummary, products, categories, customers, store, employees, currentUser] = await Promise.all([
     getDaySummary(session.storeId, today),
     getDaySummary(session.storeId, yesterday),
     prisma.product.findMany({
@@ -25,6 +25,12 @@ export default async function KassaPage() {
     prisma.category.findMany({ where: { storeId: session.storeId }, orderBy: { name: "asc" } }),
     prisma.customer.findMany({ where: { storeId: session.storeId }, orderBy: { name: "asc" } }),
     prisma.store.findUnique({ where: { id: session.storeId } }),
+    prisma.employee.findMany({
+      where: { storeId: session.storeId, active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.user.findUnique({ where: { id: session.userId }, select: { name: true } }),
   ]);
 
   const receiptSettings = {
@@ -51,8 +57,15 @@ export default async function KassaPage() {
         initialProducts={products}
         categories={categories}
         customers={customers}
+        employees={employees}
+        currentUserName={currentUser?.name ?? "Men"}
         enableMixedPayment={store?.enableMixedPayment ?? true}
         customPaymentMethods={Array.isArray(store?.customPaymentMethods) ? (store.customPaymentMethods as string[]) : []}
+        deferredPaymentMethods={
+          store?.deferredPaymentMethods && typeof store.deferredPaymentMethods === "object"
+            ? (store.deferredPaymentMethods as Record<string, number>)
+            : {}
+        }
         receipt={receiptSettings}
       />
     </div>

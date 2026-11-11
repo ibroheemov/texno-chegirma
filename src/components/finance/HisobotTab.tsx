@@ -130,12 +130,16 @@ export function HisobotTab() {
               <div className="mt-3 flex flex-col gap-2">
                 {data.paymentBreakdown.map((p) => (
                   <div key={p.method} className="flex items-center gap-3 text-sm">
-                    <span className="w-16 shrink-0 text-muted">{p.method}</span>
+                    <span className="w-20 shrink-0 truncate text-muted" title={p.method}>
+                      {p.method}
+                    </span>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-muted">
                       <div className="h-full rounded-full bg-accent" style={{ width: `${p.pct}%` }} />
                     </div>
                     <span className="w-12 shrink-0 text-right text-xs text-muted">{p.pct}%</span>
-                    <span className="w-28 shrink-0 text-right font-semibold">{formatSom(p.amount)}</span>
+                    <span className="shrink-0 whitespace-nowrap text-right font-semibold">
+                      {formatSom(p.amount)}
+                    </span>
                   </div>
                 ))}
               </div>

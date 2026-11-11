@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
   const cardIn = entries.filter((e) => e.method === "CARD" && e.direction === "IN").reduce((s, e) => s + e.amount, 0);
   const cardOut = entries.filter((e) => e.method === "CARD" && e.direction === "OUT").reduce((s, e) => s + e.amount, 0);
   const mixedIn = entries.filter((e) => e.method === "MIXED" && e.direction === "IN").reduce((s, e) => s + e.amount, 0);
+  const customIn = entries.filter((e) => e.method === "CUSTOM" && e.direction === "IN").reduce((s, e) => s + e.amount, 0);
 
   // "Naqd qoldiq" / "Karta qoldiq" are a running all-time balance, not scoped
   // to the selected period, so they're computed separately from `entries`.
@@ -73,6 +74,12 @@ export async function GET(req: NextRequest) {
   const creditTotal = creditOutstanding._sum.totalAmount ?? 0;
   const creditPaid = creditOutstanding._sum.paidAmount ?? 0;
 
+  const pendingSettlementsAgg = await prisma.thirdPartySettlement.aggregate({
+    where: { storeId: session.storeId, received: false },
+    _sum: { amount: true },
+  });
+  const pendingSettlements = pendingSettlementsAgg._sum.amount ?? 0;
+
   // "Chiqarilgan" is all-time total operating expenses — OUT entries that
   // aren't inventory purchases (already counted via costPrice/profit) or
   // sale-cancellation reversals, matching the Chiqim tab's definition.
@@ -107,7 +114,8 @@ export async function GET(req: NextRequest) {
       kassa: cashBalance + cardBalance,
       mixed: mixedIn,
       creditOutstanding: creditTotal - creditPaid,
-      totalIn: cashIn + cardIn + mixedIn,
+      pendingSettlements,
+      totalIn: cashIn + cardIn + mixedIn + customIn,
       totalOut: cashOut + cardOut,
       expenses,
       profit,

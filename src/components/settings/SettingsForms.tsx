@@ -38,6 +38,7 @@ type StoreData = {
   telegramBotToken: string | null;
   telegramChatId: string | null;
   customPaymentMethods: string[] | null;
+  deferredPaymentMethods: Record<string, number> | null;
 };
 
 async function patchStore(data: Record<string, unknown>) {
@@ -213,11 +214,16 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
   const router = useRouter();
   const [enableMixedPayment, setEnableMixedPayment] = useState(store.enableMixedPayment);
   const [methods, setMethods] = useState<string[]>(store.customPaymentMethods ?? []);
+  const [deferred, setDeferred] = useState<Record<string, number>>(store.deferredPaymentMethods ?? {});
   const [newMethod, setNewMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
-  async function persist(next: { enableMixedPayment?: boolean; customPaymentMethods?: string[] }) {
+  async function persist(next: {
+    enableMixedPayment?: boolean;
+    customPaymentMethods?: string[];
+    deferredPaymentMethods?: Record<string, number>;
+  }) {
     setSaving(true);
     await patchStore(next).catch(() => {});
     setSaving(false);
@@ -238,7 +244,28 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
   function removeMethod(name: string) {
     const next = methods.filter((m) => m !== name);
     setMethods(next);
-    persist({ customPaymentMethods: next });
+    if (name in deferred) {
+      const nextDeferred = { ...deferred };
+      delete nextDeferred[name];
+      setDeferred(nextDeferred);
+      persist({ customPaymentMethods: next, deferredPaymentMethods: nextDeferred });
+    } else {
+      persist({ customPaymentMethods: next });
+    }
+  }
+
+  function toggleDeferred(name: string, on: boolean) {
+    const next = { ...deferred };
+    if (on) next[name] = next[name] ?? 7;
+    else delete next[name];
+    setDeferred(next);
+    persist({ deferredPaymentMethods: next });
+  }
+
+  function setDeferredDays(name: string, days: number) {
+    const next = { ...deferred, [name]: days };
+    setDeferred(next);
+    persist({ deferredPaymentMethods: next });
   }
 
   return (
@@ -250,15 +277,44 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
         <Badge tone="accent">Naqd</Badge>
         <Badge tone="accent">Karta</Badge>
         <Badge tone="accent">Nasiya</Badge>
-        {methods.map((m) => (
-          <Badge key={m} tone="neutral" className="gap-1.5">
-            {m}
-            <button onClick={() => removeMethod(m)} className="text-muted hover:text-danger">
-              <Trash2 size={10} />
-            </button>
-          </Badge>
-        ))}
       </div>
+
+      {methods.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2">
+          {methods.map((m) => (
+            <div
+              key={m}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-border px-3 py-2"
+            >
+              <span className="text-sm font-medium">{m}</span>
+              <button onClick={() => removeMethod(m)} className="text-muted hover:text-danger" title="O'chirish">
+                <Trash2 size={12} />
+              </button>
+              <label className="ml-auto flex items-center gap-1.5 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  checked={m in deferred}
+                  onChange={(e) => toggleDeferred(m, e.target.checked)}
+                />
+                Kechiktirilgan (uchinchi tomon)
+              </label>
+              {m in deferred && (
+                <div className="flex items-center gap-1.5 text-xs text-muted">
+                  <input
+                    type="number"
+                    min={1}
+                    value={deferred[m]}
+                    onChange={(e) => setDeferredDays(m, Math.max(1, Number(e.target.value) || 1))}
+                    className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs outline-none focus:border-accent"
+                  />
+                  ish kunida to&apos;lanadi
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="mt-3 flex max-w-xs gap-2">
         <Input
           value={newMethod}
@@ -271,7 +327,9 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
       </div>
       <p className="mt-1 text-xs text-muted">
         Qo&apos;shimcha usullar hisobga olish uchun ro&apos;yxatda saqlanadi; kassadagi to&apos;lov tugmalari
-        Naqd/Karta/Nasiya/Aralash bo&apos;lib qoladi.
+        Naqd/Karta/Nasiya/Aralash bo&apos;lib qoladi. &quot;Kechiktirilgan&quot; belgilangan usul — mahsulot
+        uchinchi tomon kompaniyasi orqali sotilgan va pul do&apos;konga darhol emas, belgilangan ish kuni ichida
+        tushadi (Moliya → Kechiktirilgan to&apos;lovlar bo&apos;limida kuzatiladi).
       </p>
 
       <div className="mt-4 border-t border-dashed border-border pt-4">

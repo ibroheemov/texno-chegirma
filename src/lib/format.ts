@@ -13,6 +13,10 @@ export function formatSom(amount: number) {
   return formatNumber(amount) + " so'm";
 }
 
+export function formatUsd(somAmount: number, usdRate: number) {
+  return `$${(somAmount / usdRate).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+}
+
 function pad2(n: number) {
   return n.toString().padStart(2, "0");
 }

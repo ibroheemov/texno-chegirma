@@ -13,6 +13,7 @@ import {
   Ban,
   TrendingUp,
   Banknote,
+  Clock,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { formatSom, formatDateTime } from "@/lib/format";
+import { resolveMethodLabel } from "@/lib/receipt";
 import { cn } from "@/lib/cn";
 
 type Period = "today" | "week" | "month" | "all";
@@ -31,7 +33,12 @@ type Entry = {
   method: string;
   note: string | null;
   createdAt: string;
-  sale: { id: string; canceled: boolean; customer: { name: string } | null } | null;
+  sale: {
+    id: string;
+    canceled: boolean;
+    customer: { name: string } | null;
+    customAmounts: Record<string, number> | null;
+  } | null;
 };
 
 type Balances = {
@@ -40,6 +47,7 @@ type Balances = {
   kassa: number;
   mixed: number;
   creditOutstanding: number;
+  pendingSettlements: number;
   totalIn: number;
   totalOut: number;
   expenses: number;
@@ -90,6 +98,11 @@ export function FinanceView() {
         <StatCard label="Naqd qoldiq" value={formatSom(balances?.cash ?? 0)} icon={Wallet} />
         <StatCard label="Karta qoldiq" value={formatSom(balances?.card ?? 0)} icon={CreditCard} />
         <StatCard label="Nasiyadagi summa" value={formatSom(balances?.creditOutstanding ?? 0)} icon={Landmark} />
+        <StatCard
+          label="Kutilayotgan to'lovlar"
+          value={formatSom(balances?.pendingSettlements ?? 0)}
+          icon={Clock}
+        />
         <StatCard label="Chiqarilgan" value={formatSom(balances?.expenses ?? 0)} icon={PackageCheck} />
         <StatCard label="Daromad" value={formatSom(balances?.profit ?? 0)} icon={TrendingUp} />
       </div>
@@ -154,7 +167,12 @@ export function FinanceView() {
                     </p>
                     {e.note && <p className="truncate text-xs text-muted">{e.note}</p>}
                     <p className="text-xs text-muted">
-                      {formatDateTime(e.createdAt)} · {e.method === "CASH" ? "naqd" : e.method === "CARD" ? "karta" : "aralash"}
+                      {formatDateTime(e.createdAt)} ·{" "}
+                      {e.method === "CASH"
+                        ? "naqd"
+                        : e.method === "CARD"
+                          ? "karta"
+                          : resolveMethodLabel(e.method, e.sale?.customAmounts).toLowerCase()}
                     </p>
                   </div>
                   <span

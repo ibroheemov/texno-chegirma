@@ -16,6 +16,14 @@ export const SUPPLIER_PAYMENT_CATEGORY = "Tovar xaridi";
 // matching "Bekor qilingan va qaytarilgan savdolar ko'rsatkichlarga kirmaydi".
 export const SALE_CANCEL_CATEGORY = "Savdo bekor qilish";
 
+// Ledger entries tagged with this category are cash/card actually received
+// from a third-party installment company settling a deferred custom-payment
+// sale (see ThirdPartySettlement). These are a direction IN entry only; the
+// sale's revenue/profit were already recognized at sale time via Sale.profit,
+// so this doesn't double-count into profit — it just moves the money into the
+// Kassa cash/card balance once it's truly in hand.
+export const THIRD_PARTY_SETTLEMENT_CATEGORY = "Uchinchi tomon to'lovi";
+
 export function startOfDay(d: Date) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -89,12 +97,13 @@ export async function getRangeSummary(storeId: string, start: Date, end: Date) {
     id: s.id,
     createdAt: s.createdAt,
     paymentMethod: s.paymentMethod,
+    customAmounts: s.customAmounts,
     total: s.total,
     customerName: s.customer?.name ?? null,
     items: s.items.map((i) => ({ name: i.name, qty: i.qty, price: i.price })),
   }));
 
-  const itemTotals = new Map<string, { name: string; qty: number; amount: number }>();
+  const itemTotals = new Map<string, { productId: string; name: string; qty: number; amount: number }>();
   for (const sale of sales) {
     for (const item of sale.items) {
       const existing = itemTotals.get(item.productId);
@@ -103,7 +112,7 @@ export async function getRangeSummary(storeId: string, start: Date, end: Date) {
         existing.qty += item.qty;
         existing.amount += amount;
       } else {
-        itemTotals.set(item.productId, { name: item.name, qty: item.qty, amount });
+        itemTotals.set(item.productId, { productId: item.productId, name: item.name, qty: item.qty, amount });
       }
     }
   }
@@ -207,6 +216,13 @@ export async function getFinanceReport(storeId: string, period: string) {
     if (s.cashAmount > 0) paymentTotals.set("Naqd", (paymentTotals.get("Naqd") ?? 0) + s.cashAmount);
     if (s.cardAmount > 0) paymentTotals.set("Karta", (paymentTotals.get("Karta") ?? 0) + s.cardAmount);
     if (s.creditAmount > 0) paymentTotals.set("Nasiya", (paymentTotals.get("Nasiya") ?? 0) + s.creditAmount);
+    if (s.customAmounts && typeof s.customAmounts === "object") {
+      for (const [name, amount] of Object.entries(s.customAmounts as Record<string, number>)) {
+        if (typeof amount === "number" && amount > 0) {
+          paymentTotals.set(name, (paymentTotals.get(name) ?? 0) + amount);
+        }
+      }
+    }
   }
   const paymentTotal = Array.from(paymentTotals.values()).reduce((a, b) => a + b, 0);
   const paymentBreakdown = Array.from(paymentTotals.entries()).map(([method, amount]) => ({
@@ -251,6 +267,127 @@ export async function getFinanceReport(storeId: string, period: string) {
     paymentBreakdown,
     expenseByCategory: Array.from(expenseByCategory.entries()).map(([category, amount]) => ({ category, amount })),
     dailyBreakdown,
+  };
+}
+
+export async function getSellerSummary(storeId: string, period: string) {
+  const start = moliyaPeriodStart(period);
+  const sales = await prisma.sale.findMany({
+    where: { storeId, canceled: false, ...(start ? { createdAt: { gte: start } } : {}) },
+    include: { items: true, soldBy: true },
+  });
+
+  const totals = new Map<
+    string,
+    { id: string | null; name: string; receipts: number; revenue: number; profit: number; itemsQty: number }
+  >();
+  for (const sale of sales) {
+    const key = sale.soldById ?? "__unassigned__";
+    const itemsQty = sale.items.reduce((sum, i) => sum + i.qty, 0);
+    const existing = totals.get(key);
+    if (existing) {
+      existing.receipts += 1;
+      existing.revenue += sale.total;
+      existing.profit += sale.profit;
+      existing.itemsQty += itemsQty;
+    } else {
+      totals.set(key, {
+        id: sale.soldById,
+        name: sale.soldBy?.name ?? "",
+        receipts: 1,
+        revenue: sale.total,
+        profit: sale.profit,
+        itemsQty,
+      });
+    }
+  }
+
+  const rows = Array.from(totals.values()).sort((a, b) => b.revenue - a.revenue);
+  return {
+    rows,
+    totals: {
+      receipts: rows.reduce((s, r) => s + r.receipts, 0),
+      revenue: rows.reduce((s, r) => s + r.revenue, 0),
+      profit: rows.reduce((s, r) => s + r.profit, 0),
+    },
+  };
+}
+
+export async function getSellerItemBreakdown(storeId: string, period: string, employeeId: string | null) {
+  const start = moliyaPeriodStart(period);
+  const sales = await prisma.sale.findMany({
+    where: { storeId, canceled: false, soldById: employeeId, ...(start ? { createdAt: { gte: start } } : {}) },
+    include: { items: true },
+  });
+
+  const itemTotals = new Map<string, { name: string; qty: number; amount: number }>();
+  for (const sale of sales) {
+    for (const item of sale.items) {
+      const existing = itemTotals.get(item.productId);
+      const amount = item.price * item.qty;
+      if (existing) {
+        existing.qty += item.qty;
+        existing.amount += amount;
+      } else {
+        itemTotals.set(item.productId, { name: item.name, qty: item.qty, amount });
+      }
+    }
+  }
+
+  const items = Array.from(itemTotals.values()).sort((a, b) => b.amount - a.amount);
+  return {
+    receipts: sales.length,
+    totalSales: sales.reduce((sum, s) => sum + s.total, 0),
+    totalProfit: sales.reduce((sum, s) => sum + s.profit, 0),
+    items,
+  };
+}
+
+export async function getSettlements(storeId: string, period: string) {
+  const start = moliyaPeriodStart(period);
+  const [pending, received] = await Promise.all([
+    prisma.thirdPartySettlement.findMany({
+      where: { storeId, received: false },
+      include: { sale: { include: { customer: true } } },
+      orderBy: { expectedDate: "asc" },
+    }),
+    prisma.thirdPartySettlement.findMany({
+      where: { storeId, received: true, ...(start ? { receivedAt: { gte: start } } : {}) },
+      include: { sale: { include: { customer: true } } },
+      orderBy: { receivedAt: "desc" },
+    }),
+  ]);
+
+  const now = new Date();
+  const pendingRows = pending.map((s) => ({
+    id: s.id,
+    saleId: s.saleId,
+    customerName: s.sale.customer?.name ?? null,
+    methodName: s.methodName,
+    amount: s.amount,
+    expectedDate: s.expectedDate,
+    overdue: s.expectedDate < now,
+    createdAt: s.createdAt,
+  }));
+  const receivedRows = received.map((s) => ({
+    id: s.id,
+    saleId: s.saleId,
+    customerName: s.sale.customer?.name ?? null,
+    methodName: s.methodName,
+    amount: s.amount,
+    receivedAt: s.receivedAt,
+    receivedMethod: s.receivedMethod,
+  }));
+
+  return {
+    pending: pendingRows,
+    received: receivedRows,
+    totals: {
+      pendingTotal: pendingRows.reduce((s, r) => s + r.amount, 0),
+      pendingCount: pendingRows.length,
+      overdueCount: pendingRows.filter((r) => r.overdue).length,
+      receivedTotal: receivedRows.reduce((s, r) => s + r.amount, 0),
+    },
   };
 }
 

@@ -3,6 +3,19 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
+export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+
+  const employees = await prisma.employee.findMany({
+    where: { storeId: session.storeId, active: true },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  return NextResponse.json({ employees });
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -23,8 +36,10 @@ export async function POST(req: NextRequest) {
       login: body.login,
       passwordHash,
       isCourier: Boolean(body.isCourier),
-      hourlyRate: Number(body.hourlyRate ?? 0),
+      salary: Number(body.salary ?? 0),
+      salaryType: body.salaryType === "DAILY" ? "DAILY" : "MONTHLY",
       photoUrl: body.photoUrl || null,
+      faceDescriptor: body.faceDescriptor || null,
       allowedLocationName: body.allowedLocationName || null,
       allowedLat: body.allowedLat != null ? Number(body.allowedLat) : null,
       allowedLng: body.allowedLng != null ? Number(body.allowedLng) : null,

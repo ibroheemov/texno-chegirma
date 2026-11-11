@@ -49,6 +49,9 @@ export async function PATCH(req: NextRequest) {
   if (body.customPaymentMethods !== undefined) {
     data.customPaymentMethods = body.customPaymentMethods;
   }
+  if (body.deferredPaymentMethods !== undefined) {
+    data.deferredPaymentMethods = body.deferredPaymentMethods;
+  }
   if (data.name === null || data.name === "") {
     return NextResponse.json({ error: "Do'kon nomini kiriting" }, { status: 400 });
   }

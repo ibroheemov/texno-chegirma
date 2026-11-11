@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Clock, CheckCircle2, ListChecks, MapPin, MapPinOff } from "lucide-react";
+import { Loader2, Clock, CheckCircle2, ListChecks, MapPin, MapPinOff, ScanFace } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
@@ -17,6 +17,7 @@ type AttendanceRecord = {
   checkIn: string | null;
   checkOut: string | null;
   withinRange: boolean | null;
+  faceVerified: boolean | null;
   employee: { id: string; name: string };
 };
 
@@ -131,6 +132,11 @@ export function DavomatTab({ employees }: { employees: { id: string; name: strin
                           <MapPinOff size={11} /> Joydan tashqari
                         </span>
                       ))}
+                    {r.faceVerified && (
+                      <span className="flex items-center gap-1 text-accent">
+                        <ScanFace size={11} /> Yuz tasdiqlandi
+                      </span>
+                    )}
                     <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
                   </div>
                 </div>

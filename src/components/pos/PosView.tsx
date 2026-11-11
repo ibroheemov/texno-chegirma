@@ -12,14 +12,15 @@ import {
   CheckCircle2,
   X,
   Printer,
-  ChevronLeft,
-  ChevronRight,
+  Clock,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ProductImage } from "@/components/ui/ProductImage";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { formatSom } from "@/lib/format";
+import { productImages } from "@/lib/productImages";
 import { cn } from "@/lib/cn";
 import { useRouter } from "next/navigation";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
@@ -50,26 +51,25 @@ function stockBadge(p: Product) {
   return <Badge tone="accent">{p.stock} dona</Badge>;
 }
 
-function productImages(p: Product): string[] {
-  if (Array.isArray(p.images) && p.images.length) {
-    return p.images.filter((u): u is string => typeof u === "string");
-  }
-  return p.imageUrl ? [p.imageUrl] : [];
-}
-
 export function PosView({
   initialProducts,
   categories,
   customers,
+  employees,
+  currentUserName,
   enableMixedPayment = true,
   customPaymentMethods = [],
+  deferredPaymentMethods = {},
   receipt,
 }: {
   initialProducts: ProductWithCategory[];
   categories: Category[];
   customers: Customer[];
+  employees?: { id: string; name: string }[];
+  currentUserName?: string;
   enableMixedPayment?: boolean;
   customPaymentMethods?: string[];
+  deferredPaymentMethods?: Record<string, number>;
   receipt?: ReceiptSettings;
 }) {
   const router = useRouter();
@@ -79,6 +79,7 @@ export function PosView({
   const [products, setProducts] = useState(initialProducts);
   const [loading, setLoading] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [employeeId, setEmployeeId] = useState("");
   const [customerMode, setCustomerMode] = useState<"existing" | "new">("existing");
   const [customerId, setCustomerId] = useState<string>("");
   const [customerSearch, setCustomerSearch] = useState("");
@@ -263,8 +264,9 @@ export function PosView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         items: cart.map((l) => ({ productId: l.product.id, qty: l.qty })),
-        paymentMethod: method,
+        paymentMethod: standaloneCustomMethod ? "CUSTOM" : method,
         customerId: resolvedCustomerId,
+        employeeId: employeeId || undefined,
         cashAmount,
         cardAmount,
         creditAmount,
@@ -283,7 +285,7 @@ export function PosView({
     const completedSale: LastSale = {
       items: cart.map((l) => ({ name: l.product.name, qty: l.qty, price: effectivePrice(l.product) })),
       total,
-      method,
+      method: standaloneCustomMethod ?? method,
       customerName: customerMode === "new" ? newCustomerName.trim() || null : selectedCustomer?.name ?? null,
       createdAt: new Date(),
     };
@@ -504,6 +506,24 @@ export function PosView({
           <span className="font-bold text-accent">{formatSom(total)}</span>
         </div>
 
+        {employees && employees.length > 0 && (
+          <div className="mt-4 flex flex-col gap-1">
+            <label className="text-xs font-medium text-muted">Sotuvchi</label>
+            <select
+              value={employeeId}
+              onChange={(e) => setEmployeeId(e.target.value)}
+              className="h-9 rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-accent"
+            >
+              <option value="">Men ({currentUserName ?? "joriy foydalanuvchi"})</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="mt-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-muted">
@@ -675,6 +695,7 @@ export function PosView({
           )[]).map((entry) => {
             const isCustom = entry.kind === "custom";
             const label = isCustom ? entry.name : entry.label;
+            const isDeferred = isCustom && entry.name in deferredPaymentMethods;
             const active = isCustom
               ? standaloneCustomMethod === entry.name
               : method === entry.method && !standaloneCustomMethod;
@@ -691,17 +712,29 @@ export function PosView({
                     if (entry.method === "MIXED") setMixedModalOpen(true);
                   }
                 }}
-                title={label}
+                title={
+                  isDeferred
+                    ? `${label} — to'lov ${deferredPaymentMethods[entry.name]} ish kunida tushadi`
+                    : label
+                }
                 className={cn(
-                  "truncate rounded-lg border border-border py-2 text-xs font-medium text-muted",
+                  "flex items-center justify-center gap-1 truncate rounded-lg border border-border py-2 text-xs font-medium text-muted",
                   active && "border-accent bg-accent-soft text-accent"
                 )}
               >
+                {isDeferred && <Clock size={11} />}
                 {label}
               </button>
             );
           })}
         </div>
+        {standaloneCustomMethod && standaloneCustomMethod in deferredPaymentMethods && (
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+            <Clock size={12} />
+            To&apos;lov {deferredPaymentMethods[standaloneCustomMethod]} ish kunida tushadi (Moliya →
+            Kechiktirilgan to&apos;lovlar)
+          </p>
+        )}
 
         {method === "MIXED" && !standaloneCustomMethod && (
           <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-surface-muted p-3 text-xs">
@@ -797,72 +830,13 @@ export function PosView({
       />
 
       {lightboxProduct && lightboxImages.length > 0 && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/90 p-4"
-          onClick={() => setLightboxProduct(null)}
-        >
-          <button
-            type="button"
-            onClick={() => setLightboxProduct(null)}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-            aria-label="Yopish"
-          >
-            <X size={20} />
-          </button>
-
-          <div className="relative flex w-full max-w-2xl items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            {lightboxImages.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setLightboxIndex((i) => (i - 1 + lightboxImages.length) % lightboxImages.length)}
-                className="absolute left-0 z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-                aria-label="Oldingi rasm"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={lightboxImages[lightboxIndex]}
-              alt={`${lightboxProduct.name} ${lightboxIndex + 1}/${lightboxImages.length}`}
-              className="max-h-[75vh] max-w-full rounded-lg object-contain"
-            />
-            {lightboxImages.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setLightboxIndex((i) => (i + 1) % lightboxImages.length)}
-                className="absolute right-0 z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-                aria-label="Keyingi rasm"
-              >
-                <ChevronRight size={20} />
-              </button>
-            )}
-          </div>
-
-          {lightboxImages.length > 1 && (
-            <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-              {lightboxImages.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setLightboxIndex(idx)}
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full bg-white/30",
-                    idx === lightboxIndex && "bg-white"
-                  )}
-                  aria-label={`${idx + 1}-rasm`}
-                />
-              ))}
-            </div>
-          )}
-
-          <span className="text-sm font-medium text-white">
-            {lightboxProduct.name}
-            {lightboxImages.length > 1 && (
-              <span className="text-white/60"> · {lightboxIndex + 1}/{lightboxImages.length}</span>
-            )}
-          </span>
-        </div>
+        <ImageLightbox
+          title={lightboxProduct.name}
+          images={lightboxImages}
+          index={lightboxIndex}
+          onIndexChange={setLightboxIndex}
+          onClose={() => setLightboxProduct(null)}
+        />
       )}
     </div>
   );

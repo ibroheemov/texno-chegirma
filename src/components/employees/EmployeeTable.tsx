@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatSom } from "@/lib/format";
 import { EmployeeFormModal } from "./EmployeeFormModal";
+import { FaceCheckInModal } from "./FaceCheckInModal";
 import { Users, UserCheck, UserX, Clock } from "lucide-react";
 
 export type EmployeeRow = Employee & { presentToday: boolean; onShift: boolean };
@@ -19,29 +20,11 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
+  const [checkInTarget, setCheckInTarget] = useState<EmployeeRow | null>(null);
 
   const total = initialEmployees.length;
   const presentCount = initialEmployees.filter((e) => e.presentToday).length;
   const onShiftCount = initialEmployees.filter((e) => e.onShift).length;
-
-  async function markPresent(id: string) {
-    setMarking(id);
-    const geo = await new Promise<GeolocationPosition | null>((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      navigator.geolocation.getCurrentPosition((pos) => resolve(pos), () => resolve(null), { timeout: 8000 });
-    });
-    await fetch(`/api/employees/${id}/attendance`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: "PRESENT",
-        lat: geo?.coords.latitude,
-        lng: geo?.coords.longitude,
-      }),
-    });
-    setMarking(null);
-    router.refresh();
-  }
 
   async function markCheckout(id: string) {
     setMarking(id);
@@ -95,7 +78,7 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
                     {e.name} {e.isCourier && <Badge tone="info">Kuriyer</Badge>}
                   </p>
                   <p className="text-xs text-muted">
-                    {e.position ?? "Lavozim yo'q"} · {formatSom(e.hourlyRate)}/soat
+                    {e.position ?? "Lavozim yo'q"} · {formatSom(e.salary)}/{e.salaryType === "DAILY" ? "kun" : "oy"}
                     {e.phone && (
                       <span className="ml-1 inline-flex items-center gap-1">
                         <Phone size={10} /> {e.phone}
@@ -119,7 +102,7 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
                     <CheckCircle2 size={12} /> Keldi
                   </Badge>
                 ) : (
-                  <Button size="sm" variant="secondary" disabled={marking === e.id} onClick={() => markPresent(e.id)}>
+                  <Button size="sm" variant="secondary" onClick={() => setCheckInTarget(e)}>
                     Kelganini belgilash
                   </Button>
                 )}
@@ -153,6 +136,17 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
         onSaved={() => router.refresh()}
         employee={editing}
       />
+      {checkInTarget && (
+        <FaceCheckInModal
+          open={!!checkInTarget}
+          onClose={() => setCheckInTarget(null)}
+          employeeId={checkInTarget.id}
+          employeeName={checkInTarget.name}
+          requireLocation={checkInTarget.allowedLat != null && checkInTarget.allowedLng != null}
+          requireFace={!!checkInTarget.faceDescriptor}
+          onSuccess={() => router.refresh()}
+        />
+      )}
     </div>
   );
 }

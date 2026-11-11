@@ -5,7 +5,17 @@ import type { Employee } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
-import { Loader2, Camera, MapPin, CheckCircle2 } from "lucide-react";
+import { Loader2, Camera, MapPin, CheckCircle2, ScanFace, AlertTriangle } from "lucide-react";
+import { detectFaceDescriptor } from "@/lib/faceapi-client";
+
+function safeParseDescriptor(raw: string): number[] | null {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export function EmployeeFormModal({
   open,
@@ -25,8 +35,10 @@ export function EmployeeFormModal({
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [isCourier, setIsCourier] = useState(false);
-  const [hourlyRate, setHourlyRate] = useState("");
+  const [salaryType, setSalaryType] = useState<"monthly" | "daily">("monthly");
+  const [salary, setSalary] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null);
   const [locationName, setLocationName] = useState("");
   const [radius, setRadius] = useState("100");
   const [lat, setLat] = useState<number | null>(null);
@@ -44,8 +56,10 @@ export function EmployeeFormModal({
       setLogin(employee?.login ?? "");
       setPassword("");
       setIsCourier(employee?.isCourier ?? defaultIsCourier);
-      setHourlyRate(employee ? String(employee.hourlyRate) : "");
+      setSalaryType(employee?.salaryType === "DAILY" ? "daily" : "monthly");
+      setSalary(employee ? String(employee.salary) : "");
       setPhotoUrl(employee?.photoUrl ?? "");
+      setFaceDescriptor(employee?.faceDescriptor ? safeParseDescriptor(employee.faceDescriptor) : null);
       setLocationName(employee?.allowedLocationName ?? "");
       setRadius(employee?.allowedRadius != null ? String(employee.allowedRadius) : "100");
       setLat(employee?.allowedLat ?? null);
@@ -102,8 +116,10 @@ export function EmployeeFormModal({
         login,
         password: password || undefined,
         isCourier,
-        hourlyRate,
+        salary,
+        salaryType: salaryType === "daily" ? "DAILY" : "MONTHLY",
         photoUrl,
+        faceDescriptor: faceDescriptor ? JSON.stringify(faceDescriptor) : null,
         allowedLocationName: locationName,
         allowedLat: lat,
         allowedLng: lng,
@@ -151,16 +167,44 @@ export function EmployeeFormModal({
           Kuriyer (yetkazib beruvchi)
         </label>
 
-        <Field label="Soatlik ish haqi (so'm)">
+        <Field label="Maosh turi">
+          <div className="flex gap-2">
+            {(
+              [
+                ["monthly", "Oylik"],
+                ["daily", "Kunlik"],
+              ] as [typeof salaryType, string][]
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSalaryType(key)}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  salaryType === key
+                    ? "border-accent bg-accent-soft text-accent"
+                    : "border-border text-muted"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label={salaryType === "daily" ? "Kunlik maosh (so'm)" : "Oylik maosh (so'm)"}>
           <Input
             type="number"
-            value={hourlyRate}
-            onChange={(e) => setHourlyRate(e.target.value)}
-            placeholder="Masalan: 15000 so'm/soat"
+            value={salary}
+            onChange={(e) => setSalary(e.target.value)}
+            placeholder={salaryType === "daily" ? "Masalan: 150000 so'm/kun" : "Masalan: 3000000 so'm/oy"}
           />
         </Field>
 
-        <PhotoCaptureField value={photoUrl} onChange={setPhotoUrl} />
+        <PhotoCaptureField
+          value={photoUrl}
+          onChange={setPhotoUrl}
+          descriptor={faceDescriptor}
+          onDescriptor={setFaceDescriptor}
+        />
 
         <div className="rounded-lg border border-border p-3">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted">
@@ -197,10 +241,21 @@ export function EmployeeFormModal({
   );
 }
 
-function PhotoCaptureField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+function PhotoCaptureField({
+  value,
+  onChange,
+  descriptor,
+  onDescriptor,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+  descriptor: number[] | null;
+  onDescriptor: (descriptor: number[] | null) => void;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [detecting, setDetecting] = useState(false);
   const [error, setError] = useState("");
 
   async function openCamera() {
@@ -224,7 +279,7 @@ function PhotoCaptureField({ value, onChange }: { value: string; onChange: (url:
     setCameraOpen(false);
   }
 
-  function capture() {
+  async function capture() {
     const video = videoRef.current;
     if (!video) return;
     const canvas = document.createElement("canvas");
@@ -235,10 +290,22 @@ function PhotoCaptureField({ value, onChange }: { value: string; onChange: (url:
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     onChange(canvas.toDataURL("image/jpeg", 0.85));
     closeCamera();
+
+    setError("");
+    setDetecting(true);
+    try {
+      const result = await detectFaceDescriptor(canvas);
+      onDescriptor(result);
+      if (!result) setError("Yuz aniqlanmadi, Face ID ishlashi uchun qayta urinib ko'ring");
+    } catch {
+      onDescriptor(null);
+      setError("Yuzni tahlil qilib bo'lmadi, qayta urinib ko'ring");
+    }
+    setDetecting(false);
   }
 
   return (
-    <Field label="Yuz rasmi (ixtiyoriy)">
+    <Field label="Yuz rasmi">
       <div className="flex items-center gap-3">
         {value ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -266,7 +333,21 @@ function PhotoCaptureField({ value, onChange }: { value: string; onChange: (url:
           </Button>
         )}
       </div>
-      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+      {detecting && (
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted">
+          <Loader2 size={12} className="animate-spin" /> Yuz tahlil qilinmoqda...
+        </p>
+      )}
+      {!detecting && descriptor && (
+        <p className="mt-1 flex items-center gap-1 text-xs text-accent">
+          <ScanFace size={12} /> Face ID uchun yuz saqlandi
+        </p>
+      )}
+      {!detecting && error && (
+        <p className="mt-1 flex items-center gap-1 text-xs text-danger">
+          <AlertTriangle size={12} /> {error}
+        </p>
+      )}
     </Field>
   );
 }

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { moliyaPeriodStart } from "@/lib/stats";
+import { moliyaPeriodStart, startOfDay } from "@/lib/stats";
+
+const MONTHLY_DIVISOR = 30;
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -10,30 +12,42 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const period = searchParams.get("period") ?? "month";
   const employeeId = searchParams.get("employeeId") ?? undefined;
-  const start = moliyaPeriodStart(period);
+  const periodStart = startOfDay(moliyaPeriodStart(period) ?? new Date());
+  const today = startOfDay(new Date());
 
   const employees = await prisma.employee.findMany({
     where: { storeId: session.storeId, ...(employeeId ? { id: employeeId } : {}) },
     orderBy: { name: "asc" },
     include: {
       attendance: {
-        where: { ...(start ? { date: { gte: start } } : {}) },
+        where: { date: { gte: periodStart, lte: today }, status: { in: ["PRESENT", "LATE"] } },
       },
     },
   });
 
-  const rows = employees
-    .map((e) => {
-      const completed = e.attendance.filter((a) => a.checkIn && a.checkOut);
-      const hours = completed.reduce((sum, a) => sum + (a.checkOut!.getTime() - a.checkIn!.getTime()) / 3600000, 0);
-      const pay = Math.round(hours * e.hourlyRate);
-      return { id: e.id, name: e.name, hours, hourlyRate: e.hourlyRate, pay };
-    })
-    .filter((r) => r.hours > 0 || employeeId);
+  const rows = employees.map((e) => {
+    const rangeStart = startOfDay(e.createdAt) > periodStart ? startOfDay(e.createdAt) : periodStart;
+    const elapsedDays = Math.max(0, Math.round((today.getTime() - rangeStart.getTime()) / 86400000) + 1);
+    const presentDays = Math.min(e.attendance.length, elapsedDays);
+    const absentDays = Math.max(0, elapsedDays - presentDays);
+    const dailyRate = e.salaryType === "DAILY" ? e.salary : Math.round(e.salary / MONTHLY_DIVISOR);
+    const deduction = absentDays * dailyRate;
+    const pay = dailyRate * presentDays;
+    return {
+      id: e.id,
+      name: e.name,
+      salaryType: e.salaryType,
+      salary: e.salary,
+      presentDays,
+      absentDays,
+      deduction,
+      pay,
+    };
+  });
 
   const totals = {
     employeeCount: rows.length,
-    totalHours: rows.reduce((sum, r) => sum + r.hours, 0),
+    totalAbsentDays: rows.reduce((sum, r) => sum + r.absentDays, 0),
     totalPay: rows.reduce((sum, r) => sum + r.pay, 0),
   };
 

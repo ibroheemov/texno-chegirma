@@ -24,6 +24,10 @@ export default async function SozlamalarPage() {
     customPaymentMethods: Array.isArray(store.customPaymentMethods)
       ? (store.customPaymentMethods as string[])
       : null,
+    deferredPaymentMethods:
+      store.deferredPaymentMethods && typeof store.deferredPaymentMethods === "object"
+        ? (store.deferredPaymentMethods as Record<string, number>)
+        : null,
   };
 
   const slug = store.name

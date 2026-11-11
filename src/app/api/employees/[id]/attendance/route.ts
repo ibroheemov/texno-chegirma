@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { startOfDay } from "@/lib/stats";
 import { distanceMeters } from "@/lib/geo";
+import { euclideanDistance, FACE_MATCH_THRESHOLD } from "@/lib/faceMatch";
 
 export async function POST(req: NextRequest, ctx: RouteContext<"/api/employees/[id]/attendance">) {
   const session = await getSession();
@@ -16,11 +17,30 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/employees/[
   const today = startOfDay(new Date());
   const lat = body.lat != null ? Number(body.lat) : null;
   const lng = body.lng != null ? Number(body.lng) : null;
+  const liveDescriptor: number[] | undefined = Array.isArray(body.faceDescriptor) ? body.faceDescriptor : undefined;
 
   let withinRange: boolean | null = null;
-  if (status === "PRESENT" && lat != null && lng != null && employee.allowedLat != null && employee.allowedLng != null) {
+  if (status === "PRESENT" && employee.allowedLat != null && employee.allowedLng != null) {
+    if (lat == null || lng == null) {
+      return NextResponse.json({ error: "Joylashuvga ruxsat kerak" }, { status: 400 });
+    }
     const dist = distanceMeters(lat, lng, employee.allowedLat, employee.allowedLng);
     withinRange = dist <= (employee.allowedRadius ?? 100);
+    if (!withinRange) {
+      return NextResponse.json({ error: "Siz do'kon hududidan tashqarisiz" }, { status: 400 });
+    }
+  }
+
+  let faceVerified: boolean | null = null;
+  if (status === "PRESENT" && employee.faceDescriptor) {
+    if (!liveDescriptor) {
+      return NextResponse.json({ error: "Yuzni tasdiqlash kerak" }, { status: 400 });
+    }
+    const stored: number[] = JSON.parse(employee.faceDescriptor);
+    faceVerified = euclideanDistance(stored, liveDescriptor) <= FACE_MATCH_THRESHOLD;
+    if (!faceVerified) {
+      return NextResponse.json({ error: "Yuz tanilmadi" }, { status: 400 });
+    }
   }
 
   const attendance = await prisma.attendance.upsert({
@@ -31,6 +51,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/employees/[
       checkInLat: lat,
       checkInLng: lng,
       withinRange,
+      faceVerified,
     },
     create: {
       employeeId: id,
@@ -40,6 +61,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/employees/[
       checkInLat: lat,
       checkInLng: lng,
       withinRange,
+      faceVerified,
     },
   });
 

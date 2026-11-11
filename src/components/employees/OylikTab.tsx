@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Users, Clock, Wallet } from "lucide-react";
+import { Loader2, Users, UserX, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatSom } from "@/lib/format";
@@ -9,13 +9,22 @@ import { cn } from "@/lib/cn";
 
 type Period = "today" | "week" | "month";
 
-type Row = { id: string; name: string; hours: number; hourlyRate: number; pay: number };
+type Row = {
+  id: string;
+  name: string;
+  salaryType: "MONTHLY" | "DAILY";
+  salary: number;
+  presentDays: number;
+  absentDays: number;
+  deduction: number;
+  pay: number;
+};
 
 export function OylikTab({ employees }: { employees: { id: string; name: string }[] }) {
   const [period, setPeriod] = useState<Period>("month");
   const [employeeId, setEmployeeId] = useState("all");
   const [rows, setRows] = useState<Row[]>([]);
-  const [totals, setTotals] = useState({ employeeCount: 0, totalHours: 0, totalPay: 0 });
+  const [totals, setTotals] = useState({ employeeCount: 0, totalAbsentDays: 0, totalPay: 0 });
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -25,7 +34,7 @@ export function OylikTab({ employees }: { employees: { id: string; name: string 
     const res = await fetch(`/api/payroll?${params.toString()}`);
     const data = await res.json();
     setRows(data.rows ?? []);
-    setTotals(data.totals ?? { employeeCount: 0, totalHours: 0, totalPay: 0 });
+    setTotals(data.totals ?? { employeeCount: 0, totalAbsentDays: 0, totalPay: 0 });
     setLoading(false);
   }
 
@@ -38,7 +47,7 @@ export function OylikTab({ employees }: { employees: { id: string; name: string 
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Xodimlar" value={String(totals.employeeCount)} icon={Users} />
-        <StatCard label="Jami soatlar" value={totals.totalHours.toFixed(1)} icon={Clock} />
+        <StatCard label="Jami kelmagan kunlar" value={String(totals.totalAbsentDays)} icon={UserX} />
         <StatCard label="Jami oylik (so'm)" value={formatSom(totals.totalPay)} icon={Wallet} />
       </div>
 
@@ -88,8 +97,8 @@ export function OylikTab({ employees }: { employees: { id: string; name: string 
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase text-muted">
                   <th className="py-2 pr-3 font-medium">Xodim</th>
-                  <th className="py-2 pr-3 font-medium">Soatlar</th>
-                  <th className="py-2 pr-3 font-medium">Stavka</th>
+                  <th className="py-2 pr-3 font-medium">Ishlagan kunlar</th>
+                  <th className="py-2 pr-3 font-medium">Kelmagan kunlar</th>
                   <th className="py-2 pr-3 font-medium">Oylik</th>
                 </tr>
               </thead>
@@ -97,8 +106,16 @@ export function OylikTab({ employees }: { employees: { id: string; name: string 
                 {rows.map((r) => (
                   <tr key={r.id} className="border-b border-border/60 last:border-0">
                     <td className="py-2.5 pr-3 font-medium">{r.name}</td>
-                    <td className="py-2.5 pr-3">{r.hours.toFixed(1)}</td>
-                    <td className="py-2.5 pr-3 text-muted">{formatSom(r.hourlyRate)}/soat</td>
+                    <td className="py-2.5 pr-3">{r.presentDays}</td>
+                    <td className="py-2.5 pr-3 text-muted">
+                      {r.absentDays > 0 ? (
+                        <span className="text-danger">
+                          {r.absentDays} · −{formatSom(r.deduction)}
+                        </span>
+                      ) : (
+                        "0"
+                      )}
+                    </td>
                     <td className="py-2.5 pr-3 font-semibold">{formatSom(r.pay)}</td>
                   </tr>
                 ))}

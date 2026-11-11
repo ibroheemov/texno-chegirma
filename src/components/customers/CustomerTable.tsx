@@ -3,7 +3,22 @@
 import { useMemo, useState } from "react";
 import type { Customer } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { Search, Plus, Pencil, Trash2, Phone, Users, AlertCircle, Landmark, Clock, ShoppingBag, History } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  Phone,
+  Users,
+  AlertCircle,
+  Landmark,
+  Clock,
+  ShoppingBag,
+  History,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+} from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +32,49 @@ import type { CustomerRow } from "@/lib/types";
 export type { CustomerRow };
 
 type StatusFilter = "all" | "debtors" | "paid" | "dueSoon";
+type SortKey = "orders" | "spent" | "debt";
+
+function SortableTh({
+  label,
+  icon: Icon,
+  active,
+  dir,
+  onClick,
+  align = "right",
+}: {
+  label: string;
+  icon?: typeof ShoppingBag;
+  active: boolean;
+  dir: "asc" | "desc";
+  onClick: () => void;
+  align?: "left" | "right";
+}) {
+  return (
+    <th className={cn("pb-2 pr-3 font-medium", align === "right" && "text-right")}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-accent",
+          align === "right" && "justify-end",
+          active && "text-accent"
+        )}
+      >
+        {Icon && <Icon size={11} />}
+        {label}
+        {active ? (
+          dir === "asc" ? (
+            <ArrowUp size={11} />
+          ) : (
+            <ArrowDown size={11} />
+          )
+        ) : (
+          <ArrowUpDown size={11} className="opacity-40" />
+        )}
+      </button>
+    </th>
+  );
+}
 
 export function CustomerTable({ initialCustomers }: { initialCustomers: CustomerRow[] }) {
   const router = useRouter();
@@ -26,6 +84,17 @@ export function CustomerTable({ initialCustomers }: { initialCustomers: Customer
   const [editing, setEditing] = useState<Customer | null>(null);
   const [error, setError] = useState("");
   const [purchasesCustomer, setPurchasesCustomer] = useState<CustomerRow | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
 
   const stats = useMemo(() => {
     const debtors = initialCustomers.filter((c) => c.debt > 0);
@@ -44,11 +113,18 @@ export function CustomerTable({ initialCustomers }: { initialCustomers: Customer
       if (status === "dueSoon" && !c.dueSoon) return false;
       if (query) {
         const q = query.toLowerCase();
-        return c.name.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q);
+        if (!c.name.toLowerCase().includes(q) && !c.phone?.toLowerCase().includes(q)) return false;
       }
       return true;
     });
   }, [initialCustomers, status, query]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const field = sortKey === "orders" ? "ordersCount" : sortKey === "spent" ? "totalSpent" : "debt";
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => (a[field] - b[field]) * dir);
+  }, [filtered, sortKey, sortDir]);
 
   async function remove(id: string) {
     setError("");
@@ -123,18 +199,31 @@ export function CustomerTable({ initialCustomers }: { initialCustomers: Customer
               <th className="pb-2 pr-3 font-medium">Mijoz</th>
               <th className="pb-2 pr-3 font-medium">Telefon</th>
               <th className="pb-2 pr-3 font-medium">Manzil</th>
-              <th className="pb-2 pr-3 text-right font-medium">
-                <span className="inline-flex items-center justify-end gap-1">
-                  <ShoppingBag size={11} /> Buyurtmalar
-                </span>
-              </th>
-              <th className="pb-2 pr-3 text-right font-medium">Jami xaridlar</th>
-              <th className="pb-2 pr-3 font-medium">Nasiya qarzi</th>
+              <SortableTh
+                label="Buyurtmalar"
+                icon={ShoppingBag}
+                active={sortKey === "orders"}
+                dir={sortDir}
+                onClick={() => toggleSort("orders")}
+              />
+              <SortableTh
+                label="Jami xaridlar"
+                active={sortKey === "spent"}
+                dir={sortDir}
+                onClick={() => toggleSort("spent")}
+              />
+              <SortableTh
+                label="Nasiya qarzi"
+                align="left"
+                active={sortKey === "debt"}
+                dir={sortDir}
+                onClick={() => toggleSort("debt")}
+              />
               <th className="pb-2 text-right font-medium">Amallar</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c) => (
+            {sorted.map((c) => (
               <tr key={c.id} className="border-b border-border/60 last:border-0">
                 <td className="py-2.5 pr-3">
                   <div className="flex items-center gap-2.5">
@@ -203,7 +292,7 @@ export function CustomerTable({ initialCustomers }: { initialCustomers: Customer
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && (
+        {sorted.length === 0 && (
           <p className="py-10 text-center text-sm text-muted">Hech narsa topilmadi</p>
         )}
       </div>

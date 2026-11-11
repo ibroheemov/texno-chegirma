@@ -7,13 +7,14 @@ import { formatSom, formatDateTime } from "@/lib/format";
 import type { PeriodValue } from "@/lib/period";
 import { periodToParams } from "@/lib/period";
 import { Loader2, Printer } from "lucide-react";
-import { METHOD_LABEL, type ReceiptSettings, type ReceiptSale } from "@/lib/receipt";
+import { resolveMethodLabel, type ReceiptSettings, type ReceiptSale } from "@/lib/receipt";
 import { ReceiptModal } from "./ReceiptModal";
 
 type SaleRow = {
   id: string;
   createdAt: string;
   paymentMethod: string;
+  customAmounts: Record<string, number> | null;
   total: number;
   customerName: string | null;
   items: { name: string; qty: number; price: number }[];
@@ -123,7 +124,7 @@ export function SalesDetailModal({
                   >
                     <div>
                       <p className="text-xs text-muted">{formatDateTime(new Date(s.createdAt))}</p>
-                      <p className="text-xs text-muted">{METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod}</p>
+                      <p className="text-xs text-muted">{resolveMethodLabel(s.paymentMethod, s.customAmounts)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{formatSom(s.total)}</span>
@@ -134,7 +135,7 @@ export function SalesDetailModal({
                             setPreviewSale({
                               items: s.items,
                               total: s.total,
-                              method: s.paymentMethod,
+                              method: resolveMethodLabel(s.paymentMethod, s.customAmounts),
                               customerName: s.customerName,
                               createdAt: s.createdAt,
                             })
