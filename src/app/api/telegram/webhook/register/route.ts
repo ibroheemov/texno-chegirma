@@ -12,7 +12,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Avval bot tokenini saqlang" }, { status: 400 });
   }
 
-  const origin = req.nextUrl.origin;
+  // req.nextUrl.origin reflects whatever Host the request arrived with at
+  // this process, which behind Railway's proxy can carry its internal
+  // container port — a URL Telegram's setWebhook rejects (it only accepts
+  // 80/88/443/8443). The standard forwarded headers carry the public-facing
+  // host/proto instead, so prefer those.
+  const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? req.nextUrl.host;
+  const origin = `${proto}://${host}`;
   const webhookUrl = `${origin}/api/telegram/webhook`;
   const result = await setTelegramWebhook(store.telegramBotToken, webhookUrl);
 
