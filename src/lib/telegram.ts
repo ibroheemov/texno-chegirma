@@ -39,3 +39,65 @@ export async function notifyNewOrder(
     }),
   });
 }
+
+export type InlineKeyboardButton =
+  | { text: string; callback_data: string }
+  | { text: string; web_app: { url: string } };
+export type InlineKeyboard = InlineKeyboardButton[][];
+
+function api(token: string, method: string, body: Record<string, unknown>) {
+  return fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => {});
+}
+
+export function sendMessage(
+  token: string,
+  chatId: string | number,
+  text: string,
+  options?: { inlineKeyboard?: InlineKeyboard; requestContact?: boolean; removeKeyboard?: boolean }
+) {
+  const reply_markup = options?.inlineKeyboard
+    ? { inline_keyboard: options.inlineKeyboard }
+    : options?.requestContact
+      ? {
+          keyboard: [[{ text: "📱 Telefon raqamni yuborish", request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        }
+      : options?.removeKeyboard
+        ? { remove_keyboard: true }
+        : undefined;
+
+  return api(token, "sendMessage", { chat_id: chatId, text, reply_markup });
+}
+
+export function editMessage(
+  token: string,
+  chatId: string | number,
+  messageId: number,
+  text: string,
+  inlineKeyboard?: InlineKeyboard
+) {
+  return api(token, "editMessageText", {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    reply_markup: inlineKeyboard ? { inline_keyboard: inlineKeyboard } : undefined,
+  });
+}
+
+export function answerCallbackQuery(token: string, callbackQueryId: string, text?: string) {
+  return api(token, "answerCallbackQuery", { callback_query_id: callbackQueryId, text });
+}
+
+export async function setTelegramWebhook(token: string, url: string) {
+  const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  return res.json();
+}

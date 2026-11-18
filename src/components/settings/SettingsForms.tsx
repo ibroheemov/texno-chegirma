@@ -533,6 +533,9 @@ export function TelegramBotCard({ store }: { store: StoreData }) {
   const [chatId, setChatId] = useState(store.telegramChatId ?? "");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [registerMsg, setRegisterMsg] = useState("");
+  const [registerError, setRegisterError] = useState("");
 
   async function save() {
     setSaving(true);
@@ -543,15 +546,31 @@ export function TelegramBotCard({ store }: { store: StoreData }) {
     setTimeout(() => setDone(false), 1500);
   }
 
+  async function registerWebhook() {
+    setRegistering(true);
+    setRegisterError("");
+    setRegisterMsg("");
+    const res = await fetch("/api/telegram/webhook/register", { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    setRegistering(false);
+    if (!res.ok) {
+      setRegisterError(data.error ?? "Xatolik yuz berdi");
+      return;
+    }
+    setRegisterMsg(`Ulandi: ${data.webhookUrl}`);
+  }
+
   return (
     <Card className="p-5">
       <h2 className="text-sm font-semibold">Telegram bot</h2>
-      <p className="text-xs text-muted">Yangi buyurtmalar haqida xabar olish uchun Telegram botingizni ulang</p>
+      <p className="text-xs text-muted">
+        Yangi buyurtmalar haqida xabar olish va mijozlar botdan xarid qilishi uchun Telegram botingizni ulang
+      </p>
       <div className="mt-3 flex flex-col gap-3 sm:max-w-sm">
         <Field label="Bot Token">
           <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="@BotFather dan olingan token" />
         </Field>
-        <Field label="Chat ID">
+        <Field label="Chat ID (buyurtma xabarlari uchun, ixtiyoriy)">
           <Input value={chatId} onChange={(e) => setChatId(e.target.value)} placeholder="Guruh yoki kanal ID raqami" />
         </Field>
         <SavedTick show={done} />
@@ -559,6 +578,25 @@ export function TelegramBotCard({ store }: { store: StoreData }) {
           {saving && <Loader2 size={16} className="animate-spin" />}
           <Send size={14} /> Telegram sozlamalarini saqlash
         </Button>
+      </div>
+
+      <div className="mt-4 border-t border-dashed border-border pt-4">
+        <p className="text-xs text-muted">
+          Mijozlar botga <code>/start</code> yuborib katalogni ko&apos;rish, savatchaga qo&apos;shish va
+          buyurtma berishi uchun botni serverga ulang (token saqlangandan keyin bir marta bosing).
+        </p>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={registerWebhook}
+          disabled={registering || !store.telegramBotToken}
+          className="mt-2"
+        >
+          {registering && <Loader2 size={14} className="animate-spin" />}
+          Bot do&apos;konini ulash
+        </Button>
+        {registerMsg && <p className="mt-2 break-all text-xs text-accent">{registerMsg}</p>}
+        {registerError && <p className="mt-2 text-xs text-danger">{registerError}</p>}
       </div>
     </Card>
   );

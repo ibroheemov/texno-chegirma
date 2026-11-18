@@ -144,7 +144,11 @@ function CartDrawer({
   cart: CartLine[];
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    return user ? [user.first_name, user.last_name].filter(Boolean).join(" ") : "";
+  });
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD">("CASH");

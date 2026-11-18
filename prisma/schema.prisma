@@ -62,6 +62,7 @@ model Store {
   telegramUsername    String?
   telegramBotToken    String?
   telegramChatId      String?
+  publicUrl           String?
   customPaymentMethods Json?
   deferredPaymentMethods Json?
   createdAt DateTime @default(now())
@@ -78,6 +79,29 @@ model Store {
   settlements ThirdPartySettlement[]
   receipts   GoodsReceipt[]
   handovers  CashHandover[]
+  telegramSessions TelegramSession[]
+}
+
+// Per-chat state for the Telegram shopping bot. A bot webhook handles one
+// HTTP request per update with no memory of prior messages, so the current
+// screen (browsing/checkout step), cart contents, and collected checkout
+// details are persisted here between messages.
+model TelegramSession {
+  id              String   @id @default(cuid())
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  chatId          String
+  state           String   @default("browsing")
+  categoryId      String?
+  cart            Json?
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  paymentMethod   String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([storeId, chatId])
 }
 
 model OnlineOrder {

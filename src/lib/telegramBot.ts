@@ -1,0 +1,391 @@
+import { prisma } from "./prisma";
+import { formatSom } from "./format";
+import { notifyNewOrder, sendMessage, editMessage, answerCallbackQuery, type InlineKeyboard } from "./telegram";
+import type { Store } from "@prisma/client";
+
+type TgUser = { id: number; first_name: string; last_name?: string };
+type TgChat = { id: number };
+type TgContact = { phone_number: string };
+type TgMessage = {
+  message_id: number;
+  chat: TgChat;
+  from?: TgUser;
+  text?: string;
+  contact?: TgContact;
+};
+type TgCallbackQuery = {
+  id: string;
+  from: TgUser;
+  message?: TgMessage;
+  data?: string;
+};
+export type TgUpdate = {
+  message?: TgMessage;
+  callback_query?: TgCallbackQuery;
+};
+
+const MAX_LIST = 24;
+
+function cartFromJson(value: unknown): Record<string, number> {
+  if (value && typeof value === "object") return value as Record<string, number>;
+  return {};
+}
+
+async function activeProducts(storeId: string) {
+  return prisma.product.findMany({ where: { storeId, stock: { gt: 0 } }, orderBy: { name: "asc" } });
+}
+
+async function showCategories(store: Store, chatId: string, messageId?: number) {
+  const categories = await prisma.category.findMany({ where: { storeId: store.id }, orderBy: { name: "asc" } });
+  const keyboard: InlineKeyboard = [
+    ...(store.publicUrl
+      ? [[{ text: "🛍 Do'konni ochish", web_app: { url: `${store.publicUrl}/do-kon` } }]]
+      : []),
+    ...categories.map((c) => [{ text: c.name, callback_data: `cat:${c.id}` }]),
+    [{ text: "📦 Barcha mahsulotlar", callback_data: "cat:all" }],
+    [{ text: "🛒 Savatcha", callback_data: "cart:view" }],
+  ];
+  const text = store.publicUrl
+    ? `🏪 *${store.name}*\n\nTo'liq katalogni ko'rish uchun "Do'konni ochish" tugmasini bosing, yoki shu yerda kategoriyani tanlang:`
+    : `🏪 *${store.name}*\n\nKategoriyani tanlang yoki mahsulot nomini yozing:`;
+  if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
+  else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
+}
+
+async function showProducts(
+  store: Store,
+  chatId: string,
+  messageId: number | undefined,
+  opts: { categoryId?: string | null; search?: string }
+) {
+  const all = await activeProducts(store.id);
+  let list = all;
+  if (opts.categoryId) list = list.filter((p) => p.categoryId === opts.categoryId);
+  if (opts.search) {
+    const q = opts.search.toLowerCase();
+    list = list.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
+  }
+  const shown = list.slice(0, MAX_LIST);
+
+  if (shown.length === 0) {
+    const text = "Hech narsa topilmadi.";
+    const keyboard: InlineKeyboard = [[{ text: "⬅️ Orqaga", callback_data: "back:categories" }]];
+    if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
+    else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
+    return;
+  }
+
+  const keyboard: InlineKeyboard = [
+    ...shown.map((p) => [
+      { text: `${p.name} — ${formatSom(p.price)}`, callback_data: `prod:${p.id}` },
+    ]),
+    [
+      { text: "🛒 Savatcha", callback_data: "cart:view" },
+      { text: "⬅️ Orqaga", callback_data: "back:categories" },
+    ],
+  ];
+  const more = list.length > MAX_LIST ? `\n\n${list.length - MAX_LIST} ta yana bor — aniqroq yozing.` : "";
+  const text = `Mahsulotni tanlang (qo'shish uchun bosing):${more}`;
+  if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
+  else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
+}
+
+async function showCart(
+  store: Store,
+  chatId: string,
+  messageId: number | undefined,
+  cart: Record<string, number>
+) {
+  const ids = Object.keys(cart).filter((id) => cart[id] > 0);
+  if (ids.length === 0) {
+    const text = "Savatcha bo'sh.";
+    const keyboard: InlineKeyboard = [[{ text: "⬅️ Katalogga qaytish", callback_data: "back:categories" }]];
+    if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
+    else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
+    return;
+  }
+
+  const products = await prisma.product.findMany({ where: { id: { in: ids }, storeId: store.id } });
+  const lines: string[] = [];
+  let total = 0;
+  const keyboard: InlineKeyboard = [];
+  for (const p of products) {
+    const qty = Math.min(cart[p.id] ?? 0, p.stock);
+    if (qty <= 0) continue;
+    const subtotal = p.price * qty;
+    total += subtotal;
+    lines.push(`${p.name}\n${qty} × ${formatSom(p.price)} = ${formatSom(subtotal)}`);
+    keyboard.push([
+      { text: "−", callback_data: `cart:dec:${p.id}` },
+      { text: `${p.name} (${qty})`, callback_data: "noop" },
+      { text: "+", callback_data: `cart:inc:${p.id}` },
+    ]);
+  }
+  keyboard.push([{ text: "🧾 Buyurtma berish", callback_data: "checkout:start" }]);
+  keyboard.push([{ text: "⬅️ Katalogga qaytish", callback_data: "back:categories" }]);
+
+  const text = `🛒 *Savatcha*\n\n${lines.join("\n\n")}\n\n*Jami: ${formatSom(total)}*`;
+  if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
+  else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
+}
+
+async function startCheckout(store: Store, chatId: string) {
+  await sendMessage(store.telegramBotToken!, chatId, "Telefon raqamingizni yuboring:", { requestContact: true });
+}
+
+async function askAddress(store: Store, chatId: string) {
+  await sendMessage(store.telegramBotToken!, chatId, "Yetkazib berish manzilini yozing (ixtiyoriy):", {
+    inlineKeyboard: [[{ text: "O'tkazib yuborish", callback_data: "checkout:skipaddress" }]],
+    removeKeyboard: true,
+  });
+}
+
+async function askPaymentMethod(store: Store, chatId: string) {
+  await sendMessage(store.telegramBotToken!, chatId, "To'lov usulini tanlang:", {
+    inlineKeyboard: [
+      [
+        { text: "💵 Naqd", callback_data: "pay:CASH" },
+        { text: "💳 Karta", callback_data: "pay:CARD" },
+      ],
+    ],
+  });
+}
+
+async function confirmOrder(
+  store: Store,
+  chatId: string,
+  session: { customerName: string | null; customerPhone: string | null; customerAddress: string | null; paymentMethod: string | null },
+  cart: Record<string, number>
+) {
+  const ids = Object.keys(cart).filter((id) => cart[id] > 0);
+  const products = await prisma.product.findMany({ where: { id: { in: ids }, storeId: store.id } });
+  const items = products
+    .map((p) => ({ productId: p.id, name: p.name, qty: Math.min(cart[p.id] ?? 0, p.stock), price: p.price }))
+    .filter((i) => i.qty > 0);
+  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const lines = [
+    "📋 *Buyurtmani tasdiqlang*",
+    "",
+    ...items.map((i) => `${i.name} × ${i.qty} = ${formatSom(i.price * i.qty)}`),
+    "",
+    `Jami: *${formatSom(total)}*`,
+    `To'lov: ${session.paymentMethod === "CARD" ? "Karta" : "Naqd"}`,
+    session.customerAddress ? `Manzil: ${session.customerAddress}` : null,
+  ].filter(Boolean);
+
+  await sendMessage(store.telegramBotToken!, chatId, lines.join("\n"), {
+    inlineKeyboard: [
+      [
+        { text: "✅ Tasdiqlash", callback_data: "checkout:confirm" },
+        { text: "❌ Bekor qilish", callback_data: "checkout:cancel" },
+      ],
+    ],
+  });
+}
+
+export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
+  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  if (!store?.telegramBotToken) return;
+  const token = store.telegramBotToken;
+
+  const chat = update.message?.chat ?? update.callback_query?.message?.chat;
+  if (!chat) return;
+  const chatId = String(chat.id);
+
+  const session = await prisma.telegramSession.upsert({
+    where: { storeId_chatId: { storeId: store.id, chatId } },
+    update: {},
+    create: { storeId: store.id, chatId },
+  });
+  const cart = cartFromJson(session.cart);
+
+  if (update.callback_query) {
+    const cq = update.callback_query;
+    const data = cq.data ?? "";
+    const messageId = cq.message?.message_id;
+    await answerCallbackQuery(token, cq.id);
+
+    if (data === "noop") return;
+
+    if (data === "back:categories") {
+      await showCategories(store, chatId, messageId);
+      return;
+    }
+    if (data === "cart:view") {
+      await showCart(store, chatId, messageId, cart);
+      return;
+    }
+    if (data.startsWith("cat:")) {
+      const categoryId = data.slice(4);
+      await prisma.telegramSession.update({ where: { id: session.id }, data: { categoryId } });
+      await showProducts(store, chatId, messageId, { categoryId: categoryId === "all" ? null : categoryId });
+      return;
+    }
+    if (data.startsWith("prod:")) {
+      const productId = data.slice(5);
+      const product = await prisma.product.findFirst({ where: { id: productId, storeId: store.id } });
+      if (!product) return;
+      const nextQty = Math.min((cart[productId] ?? 0) + 1, product.stock);
+      cart[productId] = nextQty;
+      await prisma.telegramSession.update({ where: { id: session.id }, data: { cart } });
+      await answerCallbackQuery(token, cq.id, `✅ ${product.name} qo'shildi`);
+      return;
+    }
+    if (data.startsWith("cart:inc:") || data.startsWith("cart:dec:")) {
+      const productId = data.split(":")[2];
+      const product = await prisma.product.findFirst({ where: { id: productId, storeId: store.id } });
+      if (!product) return;
+      const delta = data.startsWith("cart:inc:") ? 1 : -1;
+      const nextQty = Math.max(0, Math.min((cart[productId] ?? 0) + delta, product.stock));
+      if (nextQty <= 0) delete cart[productId];
+      else cart[productId] = nextQty;
+      await prisma.telegramSession.update({ where: { id: session.id }, data: { cart } });
+      await showCart(store, chatId, messageId, cart);
+      return;
+    }
+    if (data === "checkout:start") {
+      if (Object.values(cart).every((q) => q <= 0)) {
+        await sendMessage(token, chatId, "Savatcha bo'sh.");
+        return;
+      }
+      await prisma.telegramSession.update({ where: { id: session.id }, data: { state: "checkout_phone" } });
+      await startCheckout(store, chatId);
+      return;
+    }
+    if (data === "checkout:skipaddress") {
+      await prisma.telegramSession.update({ where: { id: session.id }, data: { state: "checkout_payment" } });
+      await askPaymentMethod(store, chatId);
+      return;
+    }
+    if (data === "pay:CASH" || data === "pay:CARD") {
+      const paymentMethod = data.slice(5);
+      await prisma.telegramSession.update({
+        where: { id: session.id },
+        data: { paymentMethod, state: "checkout_confirm" },
+      });
+      await confirmOrder(store, chatId, { ...session, paymentMethod }, cart);
+      return;
+    }
+    if (data === "checkout:cancel") {
+      await prisma.telegramSession.update({ where: { id: session.id }, data: { state: "browsing" } });
+      await sendMessage(token, chatId, "Bekor qilindi. Savatcha saqlanib qoldi.");
+      return;
+    }
+    if (data === "checkout:confirm") {
+      await placeOrder(store, chatId, session, cart);
+      return;
+    }
+    return;
+  }
+
+  const message = update.message;
+  if (!message) return;
+
+  if (message.contact && session.state === "checkout_phone") {
+    const name = [update.message?.from?.first_name, update.message?.from?.last_name].filter(Boolean).join(" ");
+    await prisma.telegramSession.update({
+      where: { id: session.id },
+      data: { customerPhone: message.contact.phone_number, customerName: name || null, state: "checkout_address" },
+    });
+    await askAddress(store, chatId);
+    return;
+  }
+
+  const text = message.text?.trim();
+  if (!text) return;
+
+  if (text === "/start" || text.toLowerCase() === "/dokon" || text === "/do'kon") {
+    const name = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(" ");
+    await prisma.telegramSession.update({
+      where: { id: session.id },
+      data: { state: "browsing", customerName: session.customerName ?? name ?? null },
+    });
+    await showCategories(store, chatId);
+    return;
+  }
+  if (text === "/cart" || text === "/savatcha") {
+    await showCart(store, chatId, undefined, cart);
+    return;
+  }
+
+  if (session.state === "checkout_phone") {
+    await prisma.telegramSession.update({
+      where: { id: session.id },
+      data: { customerPhone: text, state: "checkout_address" },
+    });
+    await askAddress(store, chatId);
+    return;
+  }
+  if (session.state === "checkout_address") {
+    await prisma.telegramSession.update({
+      where: { id: session.id },
+      data: { customerAddress: text, state: "checkout_payment" },
+    });
+    await askPaymentMethod(store, chatId);
+    return;
+  }
+
+  // Default: treat free text as a product search.
+  await showProducts(store, chatId, undefined, { search: text });
+}
+
+async function placeOrder(
+  store: Store,
+  chatId: string,
+  session: { id: string; customerName: string | null; customerPhone: string | null; customerAddress: string | null; paymentMethod: string | null },
+  cart: Record<string, number>
+) {
+  const token = store.telegramBotToken!;
+  if (!session.customerPhone) {
+    await sendMessage(token, chatId, "Xatolik: telefon raqami topilmadi. /start bilan qaytadan boshlang.");
+    return;
+  }
+  const ids = Object.keys(cart).filter((id) => cart[id] > 0);
+  const products = await prisma.product.findMany({ where: { id: { in: ids }, storeId: store.id } });
+  const items = products
+    .map((p) => ({ productId: p.id, name: p.name, qty: Math.min(cart[p.id] ?? 0, p.stock), price: p.price }))
+    .filter((i) => i.qty > 0);
+  if (items.length === 0) {
+    await sendMessage(token, chatId, "Savatcha bo'sh.");
+    return;
+  }
+  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const order = await prisma.onlineOrder.create({
+    data: {
+      storeId: store.id,
+      customerName: session.customerName || "Telegram mijoz",
+      customerPhone: session.customerPhone,
+      customerAddress: session.customerAddress || null,
+      paymentMethod: session.paymentMethod === "CARD" ? "CARD" : "CASH",
+      items,
+      total,
+      source: "TELEGRAM",
+    },
+  });
+
+  await prisma.telegramSession.update({
+    where: { id: session.id },
+    data: { state: "browsing", cart: {}, paymentMethod: null },
+  });
+
+  if (store.notifyNewOrders) {
+    notifyNewOrder(
+      {
+        storeName: store.name,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        total,
+        items,
+      },
+      { token: store.telegramBotToken, chatId: store.telegramChatId }
+    ).catch(() => {});
+  }
+
+  await sendMessage(
+    token,
+    chatId,
+    `✅ Buyurtma qabul qilindi!\n\nJami: ${formatSom(total)}\n\nTez orada siz bilan bog'lanamiz.`
+  );
+}
