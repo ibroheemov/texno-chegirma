@@ -486,14 +486,8 @@ export function ReceiptSettingsCard({ store }: { store: StoreData }) {
       </div>
 
       <div className="mt-4 flex items-center gap-3">
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="Logo" className="h-14 w-14 rounded-lg border border-border object-contain bg-white" />
-        ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-surface-muted text-muted">
-            <Upload size={18} />
-          </div>
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoUrl || "/logo.png"} alt="Logo" className="h-14 w-auto max-w-[140px] rounded-lg border border-border object-contain bg-white" />
         <div>
           <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
             <Upload size={14} /> Logo yuklash

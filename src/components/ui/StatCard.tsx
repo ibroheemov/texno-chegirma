@@ -25,7 +25,7 @@ export function StatCard({
 }) {
   return (
     <Card
-      className={cn("p-5", onClick && "cursor-pointer text-left transition-colors hover:border-accent")}
+      className={cn("stat-tile p-5", onClick && "cursor-pointer text-left transition hover:brightness-110")}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -41,7 +41,7 @@ export function StatCard({
       }
     >
       <div className="flex items-start justify-between">
-        <span className="text-sm font-semibold text-muted">{label}</span>
+        <span className="text-sm font-semibold text-white/85">{label}</span>
         <div className="flex items-center gap-1">
           {onToggleMask && (
             <button
@@ -50,28 +50,28 @@ export function StatCard({
                 e.stopPropagation();
                 onToggleMask();
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/20 hover:text-white"
               aria-label={masked ? "Summani ko'rsatish" : "Summani yashirish"}
             >
               {masked ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           )}
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-muted text-accent">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white">
             <Icon size={18} />
           </span>
         </div>
       </div>
-      <div className="mt-3 text-[28px] font-bold leading-none text-foreground">
+      <div className="mt-3 text-[28px] font-bold leading-none text-white">
         {masked ? "••••••" : value}
       </div>
       {delta && (
         <>
-          <div className="my-4 border-t border-dashed border-border" />
-          <div className="text-xs text-muted">
+          <div className="my-4 border-t border-dashed border-white/35" />
+          <div className="text-xs text-white/85">
             <span
               className={cn(
                 "font-semibold",
-                deltaTone === "accent" ? "text-accent" : "text-danger"
+                deltaTone === "accent" ? "text-white" : "rounded bg-white px-1.5 py-0.5 text-danger"
               )}
             >
               {delta}

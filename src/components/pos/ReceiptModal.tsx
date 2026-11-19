@@ -46,7 +46,7 @@ export function ReceiptModal({
             <div className="text-center">
               {settings.logoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={settings.logoUrl} alt="" className="mx-auto mb-2 h-12 w-12 object-contain" />
+                <img src={settings.logoUrl} alt="" className="mx-auto mb-2 h-12 w-auto max-w-[120px] object-contain" />
               )}
               <p className="text-sm font-bold">{settings.storeName}</p>
               {settings.address && <p className="text-muted">{settings.address}</p>}

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { StorefrontView } from "@/components/storefront/StorefrontView";
 import { TelegramWebAppInit } from "@/components/storefront/TelegramWebAppInit";
-import { Store } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 // Shows live stock/prices, so it must not be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -30,9 +30,7 @@ export default async function StorefrontPage() {
       <TelegramWebAppInit />
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-            <Store size={20} />
-          </span>
+          <Logo imgClassName="h-8" />
           <div>
             <h1 className="text-lg font-bold">{store.name}</h1>
             <p className="text-xs text-muted">Onlayn do&apos;kon</p>

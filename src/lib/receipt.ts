@@ -79,7 +79,7 @@ export async function printReceipt(sale: ReceiptSale, settings: ReceiptSettings)
         <style>
           body { font-family: monospace; width: 280px; margin: 0 auto; padding: 16px; color: #111; }
           .center { text-align: center; }
-          .logo { max-width: 64px; max-height: 64px; margin: 0 auto 8px; display: block; }
+          .logo { max-width: 120px; max-height: 64px; margin: 0 auto 8px; display: block; }
           h1 { font-size: 16px; margin: 0 0 2px; }
           p { margin: 2px 0; font-size: 11px; }
           .divider { border-top: 1px dashed #999; margin: 8px 0; }
@@ -91,7 +91,7 @@ export async function printReceipt(sale: ReceiptSale, settings: ReceiptSettings)
       </head>
       <body>
         <div class="center">
-          ${settings.logoUrl ? `<img class="logo" src="${settings.logoUrl}" alt="" />` : ""}
+          ${settings.logoUrl ? `<img class="logo" src="${settings.logoUrl.startsWith("/") ? window.location.origin + settings.logoUrl : settings.logoUrl}" alt="" />` : ""}
           <h1>${escapeHtml(settings.storeName)}</h1>
           ${settings.address ? `<p>${escapeHtml(settings.address)}</p>` : ""}
           ${settings.phone ? `<p>${escapeHtml(settings.phone)}</p>` : ""}

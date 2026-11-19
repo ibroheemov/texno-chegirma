@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Store, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 
 export default function LoginPage() {
   const [login, setLogin] = useState("");
@@ -35,10 +36,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-            <Store size={24} />
-          </span>
-          <h1 className="text-xl font-bold">Savdo Panel</h1>
+          <Logo className="rounded-2xl px-3 py-2" imgClassName="h-16" />
+          <h1 className="text-xl font-bold">Texno Chegirma</h1>
           <p className="text-sm text-muted">Kabinetga kirish uchun login va parolingizni kiriting</p>
         </div>
         <form

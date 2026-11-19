@@ -1,4 +1,4 @@
-# Savdo Panel
+# Texno Chegirma
 
 A POS / inventory / finance / installment-credit management app for a single retail store, built as an original, better-designed alternative to elektron-savdo.uz — same feature set, own design and code.
 

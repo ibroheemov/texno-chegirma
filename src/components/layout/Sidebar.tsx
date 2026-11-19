@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { navItems, storeNavItem } from "./nav-items";
-import { Store as StoreIcon, X } from "lucide-react";
+import { X } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export function Sidebar({
   storeName,
@@ -33,9 +34,7 @@ export function Sidebar({
       >
         <div className="flex h-16 items-center justify-between gap-2 border-b border-border px-5">
           <div className="flex items-center gap-2 font-bold text-foreground">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-              <StoreIcon size={18} />
-            </span>
+            <Logo imgClassName="h-6" />
             <span className="truncate">{storeName}</span>
           </div>
           <button onClick={onClose} className="text-muted lg:hidden">

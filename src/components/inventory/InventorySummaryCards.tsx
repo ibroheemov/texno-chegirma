@@ -38,18 +38,18 @@ export function InventorySummaryCards({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {items.map((item) => (
-        <Card key={item.label} className="p-4">
+        <Card key={item.label} className="stat-tile p-4">
           <div className="flex items-start justify-between">
-            <span className="text-sm font-semibold text-muted">{item.label}</span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-muted text-accent">
+            <span className="text-sm font-semibold text-white/85">{item.label}</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white">
               <item.icon size={16} />
             </span>
           </div>
-          <div className="mt-2 text-xl font-bold leading-tight text-foreground">
+          <div className="mt-2 text-xl font-bold leading-tight text-white">
             {item.value}
-            {item.valueSuffix && <span className="text-sm font-semibold text-muted">{item.valueSuffix}</span>}
+            {item.valueSuffix && <span className="text-sm font-semibold text-white/85">{item.valueSuffix}</span>}
           </div>
-          <p className="mt-1 text-xs text-muted">{item.sub}</p>
+          <p className="mt-1 text-xs text-white/85">{item.sub}</p>
         </Card>
       ))}
     </div>

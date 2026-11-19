@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Savdo Panel — Do'koningizni avtomatlashtiring",
+  title: "Texno Chegirma — Do'koningizni avtomatlashtiring",
   description: "Kassa, ombor, moliya, nasiya va onlayn do'kon — bir joyda.",
   manifest: "/manifest.webmanifest",
 };

@@ -97,3 +97,17 @@ body {
   background: var(--border);
   border-radius: 8px;
 }
+
+/* Colourful hero/stat tiles. Colour cycles by position inside the grid. */
+.stat-tile {
+  --tile-from: #047857;
+  --tile-to: #10b981;
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--tile-from), var(--tile-to));
+}
+.stat-tile:nth-child(6n + 2) { --tile-from: #1d4ed8; --tile-to: #3b82f6; }
+.stat-tile:nth-child(6n + 3) { --tile-from: #6d28d9; --tile-to: #8b5cf6; }
+.stat-tile:nth-child(6n + 4) { --tile-from: #be123c; --tile-to: #f43f5e; }
+.stat-tile:nth-child(6n + 5) { --tile-from: #0e7490; --tile-to: #06b6d4; }
+.stat-tile:nth-child(6n + 6) { --tile-from: #334155; --tile-to: #64748b; }

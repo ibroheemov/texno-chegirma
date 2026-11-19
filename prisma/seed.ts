@@ -18,7 +18,7 @@ async function main() {
   await prisma.store.deleteMany();
 
   const store = await prisma.store.create({
-    data: { name: "Namuna Do'kon", currency: "so'm" },
+    data: { name: "Texno Chegirma", currency: "so'm" },
   });
 
   const passwordHash = await bcrypt.hash("demo1234", 10);
