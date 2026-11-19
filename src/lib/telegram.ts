@@ -45,6 +45,11 @@ export type InlineKeyboardButton =
   | { text: string; web_app: { url: string } };
 export type InlineKeyboard = InlineKeyboardButton[][];
 
+// Persistent keyboard shown under the chat input (as opposed to inline buttons
+// attached to a message).
+export type ReplyKeyboardButton = { text: string } | { text: string; web_app: { url: string } };
+export type ReplyKeyboard = ReplyKeyboardButton[][];
+
 function api(token: string, method: string, body: Record<string, unknown>) {
   return fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: "POST",
@@ -57,11 +62,18 @@ export function sendMessage(
   token: string,
   chatId: string | number,
   text: string,
-  options?: { inlineKeyboard?: InlineKeyboard; requestContact?: boolean; removeKeyboard?: boolean }
+  options?: {
+    inlineKeyboard?: InlineKeyboard;
+    replyKeyboard?: ReplyKeyboard;
+    requestContact?: boolean;
+    removeKeyboard?: boolean;
+  }
 ) {
   const reply_markup = options?.inlineKeyboard
     ? { inline_keyboard: options.inlineKeyboard }
-    : options?.requestContact
+    : options?.replyKeyboard
+      ? { keyboard: options.replyKeyboard, resize_keyboard: true, is_persistent: true }
+      : options?.requestContact
       ? {
           keyboard: [[{ text: "📱 Telefon raqamni yuborish", request_contact: true }]],
           resize_keyboard: true,

@@ -1,7 +1,15 @@
 import { prisma } from "./prisma";
 import { formatSom } from "./format";
-import { notifyNewOrder, sendMessage, editMessage, answerCallbackQuery, type InlineKeyboard } from "./telegram";
+import {
+  notifyNewOrder,
+  sendMessage,
+  editMessage,
+  answerCallbackQuery,
+  type InlineKeyboard,
+  type ReplyKeyboard,
+} from "./telegram";
 import type { Store } from "@prisma/client";
+import { syncUsdPrices } from "./usdRate";
 
 type TgUser = { id: number; first_name: string; last_name?: string };
 type TgChat = { id: number };
@@ -35,21 +43,25 @@ async function activeProducts(storeId: string) {
   return prisma.product.findMany({ where: { storeId, stock: { gt: 0 } }, orderBy: { name: "asc" } });
 }
 
-async function showCategories(store: Store, chatId: string, messageId?: number) {
-  const categories = await prisma.category.findMany({ where: { storeId: store.id }, orderBy: { name: "asc" } });
-  const keyboard: InlineKeyboard = [
-    ...(store.publicUrl
-      ? [[{ text: "🛍 Do'konni ochish", web_app: { url: `${store.publicUrl}/do-kon` } }]]
-      : []),
-    ...categories.map((c) => [{ text: c.name, callback_data: `cat:${c.id}` }]),
-    [{ text: "📦 Barcha mahsulotlar", callback_data: "cat:all" }],
-    [{ text: "🛒 Savatcha", callback_data: "cart:view" }],
+const BTN_OPEN_STORE = "🛍 Do'konni ochish";
+const BTN_PRODUCTS = "📦 Mahsulotlar";
+const BTN_CART = "🛒 Savatcha";
+
+// The bot's main menu is a persistent keyboard under the chat input; the
+// "Do'konni ochish" button opens the Mini App storefront.
+function mainKeyboard(store: Store): ReplyKeyboard {
+  return [
+    ...(store.publicUrl ? [[{ text: BTN_OPEN_STORE, web_app: { url: `${store.publicUrl}/do-kon` } }]] : []),
+    [{ text: BTN_PRODUCTS }, { text: BTN_CART }],
   ];
-  const text = store.publicUrl
-    ? `🏪 *${store.name}*\n\nTo'liq katalogni ko'rish uchun "Do'konni ochish" tugmasini bosing, yoki shu yerda kategoriyani tanlang:`
-    : `🏪 *${store.name}*\n\nKategoriyani tanlang yoki mahsulot nomini yozing:`;
-  if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
-  else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
+}
+
+async function showMenu(store: Store, chatId: string, greeting?: string) {
+  const hint = store.publicUrl
+    ? `To'liq katalogni ko'rish uchun pastdagi "${BTN_OPEN_STORE}" tugmasini bosing yoki mahsulot nomini yozib qidiring:`
+    : "Pastdagi tugmalardan foydalaning yoki mahsulot nomini yozib qidiring:";
+  const text = `${greeting ? `${greeting}\n\n` : ""}🏪 *${store.name}*\n\n${hint}`;
+  await sendMessage(store.telegramBotToken!, chatId, text, { replyKeyboard: mainKeyboard(store) });
 }
 
 async function showProducts(
@@ -69,9 +81,8 @@ async function showProducts(
 
   if (shown.length === 0) {
     const text = "Hech narsa topilmadi.";
-    const keyboard: InlineKeyboard = [[{ text: "⬅️ Orqaga", callback_data: "back:categories" }]];
-    if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
-    else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
+    if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text);
+    else await sendMessage(store.telegramBotToken!, chatId, text);
     return;
   }
 
@@ -79,10 +90,7 @@ async function showProducts(
     ...shown.map((p) => [
       { text: `${p.name} — ${formatSom(p.price)}`, callback_data: `prod:${p.id}` },
     ]),
-    [
-      { text: "🛒 Savatcha", callback_data: "cart:view" },
-      { text: "⬅️ Orqaga", callback_data: "back:categories" },
-    ],
+    [{ text: BTN_CART, callback_data: "cart:view" }],
   ];
   const more = list.length > MAX_LIST ? `\n\n${list.length - MAX_LIST} ta yana bor — aniqroq yozing.` : "";
   const text = `Mahsulotni tanlang (qo'shish uchun bosing):${more}`;
@@ -99,7 +107,7 @@ async function showCart(
   const ids = Object.keys(cart).filter((id) => cart[id] > 0);
   if (ids.length === 0) {
     const text = "Savatcha bo'sh.";
-    const keyboard: InlineKeyboard = [[{ text: "⬅️ Katalogga qaytish", callback_data: "back:categories" }]];
+    const keyboard: InlineKeyboard = [[{ text: "📦 Mahsulotlarga qaytish", callback_data: "cat:all" }]];
     if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
     else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
     return;
@@ -122,7 +130,7 @@ async function showCart(
     ]);
   }
   keyboard.push([{ text: "🧾 Buyurtma berish", callback_data: "checkout:start" }]);
-  keyboard.push([{ text: "⬅️ Katalogga qaytish", callback_data: "back:categories" }]);
+  keyboard.push([{ text: "📦 Mahsulotlarga qaytish", callback_data: "cat:all" }]);
 
   const text = `🛒 *Savatcha*\n\n${lines.join("\n\n")}\n\n*Jami: ${formatSom(total)}*`;
   if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
@@ -243,6 +251,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
   const store = await prisma.store.findUnique({ where: { id: storeId } });
   if (!store?.telegramBotToken) return;
   const token = store.telegramBotToken;
+  await syncUsdPrices(store.id);
 
   const chat = update.message?.chat ?? update.callback_query?.message?.chat;
   if (!chat) return;
@@ -279,8 +288,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
         where: { id: session.id },
         data: { state: "browsing", customerName: created.name, customerPhone: created.phone, customerAddress: created.address },
       });
-      await sendMessage(token, chatId, `✅ Ro'yxatdan o'tdingiz, ${created.name}!`, { removeKeyboard: true });
-      await showCategories(store, chatId);
+      await showMenu(store, chatId, `✅ Ro'yxatdan o'tdingiz, ${created.name}!`);
     };
 
     if (update.callback_query) {
@@ -337,7 +345,8 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
     if (data === "noop") return;
 
     if (data === "back:categories") {
-      await showCategories(store, chatId, messageId);
+      // Legacy button from older messages: categories are gone, show all products.
+      await showProducts(store, chatId, messageId, { categoryId: null });
       return;
     }
     if (data === "cart:view") {
@@ -427,10 +436,14 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
       where: { id: session.id },
       data: { state: "browsing", customerName: customer.name },
     });
-    await showCategories(store, chatId);
+    await showMenu(store, chatId);
     return;
   }
-  if (text === "/cart" || text === "/savatcha") {
+  if (text === BTN_PRODUCTS || text === "/mahsulotlar") {
+    await showProducts(store, chatId, undefined, { categoryId: null });
+    return;
+  }
+  if (text === BTN_CART || text === "/cart" || text === "/savatcha") {
     await showCart(store, chatId, undefined, cart);
     return;
   }
