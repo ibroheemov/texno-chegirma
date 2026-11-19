@@ -5,7 +5,7 @@ import type { Store } from "@prisma/client";
 
 type TgUser = { id: number; first_name: string; last_name?: string };
 type TgChat = { id: number };
-type TgContact = { phone_number: string };
+type TgContact = { phone_number: string; user_id?: number };
 type TgMessage = {
   message_id: number;
   chat: TgChat;
@@ -129,12 +129,67 @@ async function showCart(
   else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
 }
 
-async function startCheckout(store: Store, chatId: string) {
-  await sendMessage(store.telegramBotToken!, chatId, "Telefon raqamingizni yuboring:", { requestContact: true });
+async function askRegistrationPhone(store: Store, chatId: string) {
+  await sendMessage(
+    store.telegramBotToken!,
+    chatId,
+    `👋 *${store.name}* do'koniga xush kelibsiz!\n\nBuyurtma berish uchun avval ro'yxatdan o'ting — telefon raqamingizni yuboring:`,
+    { requestContact: true }
+  );
 }
 
-async function askAddress(store: Store, chatId: string) {
-  await sendMessage(store.telegramBotToken!, chatId, "Yetkazib berish manzilini yozing (ixtiyoriy):", {
+async function askRegistrationAddress(store: Store, chatId: string) {
+  await sendMessage(store.telegramBotToken!, chatId, "Manzilingizni yozing (ixtiyoriy):", {
+    inlineKeyboard: [[{ text: "O'tkazib yuborish", callback_data: "register:skipaddress" }]],
+    removeKeyboard: true,
+  });
+}
+
+function normalizePhone(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  return digits ? `+${digits}` : "";
+}
+
+// Registers the Telegram user as a store customer (same record as Kassa ->
+// Savatcha -> Yangi mijoz). Reuses an existing customer with the same phone
+// number instead of creating a duplicate.
+async function registerCustomer(
+  store: Store,
+  chatId: string,
+  info: { name: string; phone: string; address: string | null }
+) {
+  const tail = info.phone.replace(/\D/g, "").slice(-9);
+  // Phones are stored as typed (spaces, dashes...), so compare digits in JS.
+  const candidates = tail
+    ? await prisma.customer.findMany({
+        where: { storeId: store.id, telegramChatId: null, phone: { not: null } },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const existing = candidates.find((c) => (c.phone ?? "").replace(/\D/g, "").endsWith(tail));
+  if (existing) {
+    return prisma.customer.update({
+      where: { id: existing.id },
+      data: { telegramChatId: chatId, address: existing.address || info.address },
+    });
+  }
+  return prisma.customer.create({
+    data: {
+      storeId: store.id,
+      name: info.name || "Telegram mijoz",
+      phone: info.phone,
+      address: info.address,
+      note: "Telegram bot orqali ro'yxatdan o'tgan",
+      telegramChatId: chatId,
+    },
+  });
+}
+
+async function askAddress(store: Store, chatId: string, savedAddress?: string | null) {
+  const prompt = savedAddress
+    ? `Saqlangan manzil: ${savedAddress}\n\nShu manzilga yetkazamiz. Boshqa manzil yozing yoki "O'tkazib yuborish" tugmasini bosing:`
+    : "Yetkazib berish manzilini yozing (ixtiyoriy):";
+  await sendMessage(store.telegramBotToken!, chatId, prompt, {
     inlineKeyboard: [[{ text: "O'tkazib yuborish", callback_data: "checkout:skipaddress" }]],
     removeKeyboard: true,
   });
@@ -200,6 +255,79 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
   });
   const cart = cartFromJson(session.cart);
 
+  const tgUser = update.message?.from ?? update.callback_query?.from;
+  const tgName = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(" ");
+  const customer = await prisma.customer.findUnique({
+    where: { storeId_telegramChatId: { storeId: store.id, telegramChatId: chatId } },
+  });
+
+  // Registration gate: a Telegram user must be registered as a customer
+  // before they can browse or order.
+  if (!customer) {
+    const finish = async (address: string | null) => {
+      if (!session.customerPhone) {
+        await prisma.telegramSession.update({ where: { id: session.id }, data: { state: "register_phone" } });
+        await askRegistrationPhone(store, chatId);
+        return;
+      }
+      const created = await registerCustomer(store, chatId, {
+        name: session.customerName || tgName,
+        phone: session.customerPhone,
+        address,
+      });
+      await prisma.telegramSession.update({
+        where: { id: session.id },
+        data: { state: "browsing", customerName: created.name, customerPhone: created.phone, customerAddress: created.address },
+      });
+      await sendMessage(token, chatId, `✅ Ro'yxatdan o'tdingiz, ${created.name}!`, { removeKeyboard: true });
+      await showCategories(store, chatId);
+    };
+
+    if (update.callback_query) {
+      const cq = update.callback_query;
+      await answerCallbackQuery(token, cq.id);
+      if (cq.data === "register:skipaddress" && session.state === "register_address") {
+        await finish(null);
+        return;
+      }
+    } else {
+      const message = update.message;
+      const text = message?.text?.trim();
+      if (message?.contact && session.state === "register_phone") {
+        // Only accept the user's own contact, not a forwarded one.
+        if (message.contact.user_id && message.from && message.contact.user_id !== message.from.id) {
+          await sendMessage(token, chatId, "Iltimos, o'zingizning telefon raqamingizni yuboring.", { requestContact: true });
+          return;
+        }
+        await prisma.telegramSession.update({
+          where: { id: session.id },
+          data: { customerPhone: normalizePhone(message.contact.phone_number), customerName: tgName || null, state: "register_address" },
+        });
+        await askRegistrationAddress(store, chatId);
+        return;
+      }
+      if (text && session.state === "register_phone" && /^\+?[\d\s()-]{9,}$/.test(text)) {
+        await prisma.telegramSession.update({
+          where: { id: session.id },
+          data: { customerPhone: normalizePhone(text), customerName: tgName || null, state: "register_address" },
+        });
+        await askRegistrationAddress(store, chatId);
+        return;
+      }
+      if (text && session.state === "register_address" && !text.startsWith("/")) {
+        await finish(text);
+        return;
+      }
+    }
+    // Anything else (including /start): begin or restart registration.
+    await prisma.telegramSession.update({
+      where: { id: session.id },
+      data: { state: "register_phone", customerPhone: null, customerName: tgName || null },
+    });
+    await askRegistrationPhone(store, chatId);
+    return;
+  }
+
   if (update.callback_query) {
     const cq = update.callback_query;
     const data = cq.data ?? "";
@@ -249,8 +377,17 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
         await sendMessage(token, chatId, "Savatcha bo'sh.");
         return;
       }
-      await prisma.telegramSession.update({ where: { id: session.id }, data: { state: "checkout_phone" } });
-      await startCheckout(store, chatId);
+      // Name and phone come from the registered customer.
+      await prisma.telegramSession.update({
+        where: { id: session.id },
+        data: {
+          state: "checkout_address",
+          customerName: customer.name,
+          customerPhone: customer.phone,
+          customerAddress: customer.address,
+        },
+      });
+      await askAddress(store, chatId, customer.address);
       return;
     }
     if (data === "checkout:skipaddress") {
@@ -282,24 +419,13 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
   const message = update.message;
   if (!message) return;
 
-  if (message.contact && session.state === "checkout_phone") {
-    const name = [update.message?.from?.first_name, update.message?.from?.last_name].filter(Boolean).join(" ");
-    await prisma.telegramSession.update({
-      where: { id: session.id },
-      data: { customerPhone: message.contact.phone_number, customerName: name || null, state: "checkout_address" },
-    });
-    await askAddress(store, chatId);
-    return;
-  }
-
   const text = message.text?.trim();
   if (!text) return;
 
   if (text === "/start" || text.toLowerCase() === "/dokon" || text === "/do'kon") {
-    const name = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(" ");
     await prisma.telegramSession.update({
       where: { id: session.id },
-      data: { state: "browsing", customerName: session.customerName ?? name ?? null },
+      data: { state: "browsing", customerName: customer.name },
     });
     await showCategories(store, chatId);
     return;
@@ -309,14 +435,6 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
     return;
   }
 
-  if (session.state === "checkout_phone") {
-    await prisma.telegramSession.update({
-      where: { id: session.id },
-      data: { customerPhone: text, state: "checkout_address" },
-    });
-    await askAddress(store, chatId);
-    return;
-  }
   if (session.state === "checkout_address") {
     await prisma.telegramSession.update({
       where: { id: session.id },

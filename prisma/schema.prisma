@@ -183,11 +183,14 @@ model Customer {
   phone     String?
   address   String?
   note      String?
+  // Set when the customer registered through the Telegram bot.
+  telegramChatId String?
   createdAt DateTime @default(now())
 
   sales  Sale[]
   debts  CreditLedger[]
 
+  @@unique([storeId, telegramChatId])
   @@index([storeId, name])
 }
 
