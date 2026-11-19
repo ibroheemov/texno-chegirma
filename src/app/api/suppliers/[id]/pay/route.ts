@@ -17,8 +17,17 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/suppliers/[
   let amount = Math.max(0, Number(body.amount) || 0);
   if (amount <= 0) return NextResponse.json({ error: "Summani kiriting" }, { status: 400 });
 
+  // Optional: pay only the given receipts (a single product row's debt).
+  const receiptIds: string[] = Array.isArray(body.receiptIds)
+    ? body.receiptIds.filter((x: unknown): x is string => typeof x === "string")
+    : [];
   const unpaidReceipts = await prisma.goodsReceipt.findMany({
-    where: { storeId: session.storeId, supplierId: id, paymentMethod: "CREDIT" },
+    where: {
+      storeId: session.storeId,
+      supplierId: id,
+      paymentMethod: "CREDIT",
+      ...(receiptIds.length ? { id: { in: receiptIds } } : {}),
+    },
     orderBy: { createdAt: "asc" },
   });
 

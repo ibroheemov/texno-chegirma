@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getUsdRate } from "@/lib/usdRate";
 
 export async function GET() {
   const session = await getSession();
@@ -12,6 +13,11 @@ export async function GET() {
     include: { receipts: true },
   });
 
+  // Debt is shown in dollars: dollar purchases natively, so'm purchases converted
+  // at the live CBU rate (the store's manual rate if CBU is unreachable).
+  const store = await prisma.store.findUnique({ where: { id: session.storeId } });
+  const rateInfo = await getUsdRate(store?.usdRate);
+
   const rows = suppliers.map((s) => {
     const distinctProducts = new Set(s.receipts.map((r) => r.productId ?? r.productName)).size;
     const totalUnits = s.receipts.reduce((sum, r) => sum + r.qty, 0);
@@ -22,6 +28,21 @@ export async function GET() {
       0
     );
     const debt = totalAmount - paid;
+    let debtUsd = 0;
+    let debtUsdEstimated = false;
+    for (const r of s.receipts) {
+      if (r.paymentMethod !== "CREDIT") continue;
+      if (r.currency === "usd") {
+        debtUsd += Math.max(0, (r.costUsd ?? 0) - r.paidUsd);
+      } else {
+        const dueSom = Math.max(0, r.totalCost - r.paidAmount);
+        if (dueSom > 0 && rateInfo) {
+          debtUsd += dueSom / rateInfo.rate;
+          debtUsdEstimated = true;
+        }
+      }
+    }
+    debtUsd = Math.round(debtUsd * 100) / 100;
     const cash = s.receipts.filter((r) => r.paymentMethod === "CASH").reduce((sum, r) => sum + r.totalCost, 0);
     const card = s.receipts.filter((r) => r.paymentMethod === "CARD").reduce((sum, r) => sum + r.totalCost, 0);
     return {
@@ -35,6 +56,8 @@ export async function GET() {
       cash,
       card,
       debt,
+      debtUsd,
+      debtUsdEstimated,
       receiptsCount: s.receipts.length,
     };
   });

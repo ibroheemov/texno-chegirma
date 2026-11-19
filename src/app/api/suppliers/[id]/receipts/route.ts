@@ -33,6 +33,9 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/suppliers/[i
     cash: number;
     card: number;
     credit: number;
+    debt: number;
+    debtUsd: number;
+    receiptIds: string[];
     lastPurchasedAt: Date;
   };
 
@@ -48,6 +51,9 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/suppliers/[i
       cash: 0,
       card: 0,
       credit: 0,
+      debt: 0,
+      debtUsd: 0,
+      receiptIds: [],
       lastPurchasedAt: r.createdAt,
     };
     existing.qty += r.qty;
@@ -56,7 +62,17 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/suppliers/[i
     existing.receiptsCount += 1;
     if (r.paymentMethod === "CASH") existing.cash += r.totalCost;
     else if (r.paymentMethod === "CARD") existing.card += r.totalCost;
-    else if (r.paymentMethod === "CREDIT") existing.credit += r.totalCost;
+    else if (r.paymentMethod === "CREDIT") {
+      existing.credit += r.totalCost;
+      // Outstanding (unpaid) part of this credit purchase.
+      const dueSom = r.totalCost - r.paidAmount;
+      const dueUsd = r.currency === "usd" ? (r.costUsd ?? 0) - r.paidUsd : 0;
+      if (dueSom > 0 || dueUsd > 0) {
+        existing.debt += Math.max(0, dueSom);
+        existing.debtUsd += Math.max(0, dueUsd);
+        existing.receiptIds.push(r.id);
+      }
+    }
     if (r.createdAt > existing.lastPurchasedAt) existing.lastPurchasedAt = r.createdAt;
     byProduct.set(key, existing);
   }

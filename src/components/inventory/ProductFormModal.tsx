@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ProductImage } from "@/components/ui/ProductImage";
 import { Loader2, ScanBarcode, Keyboard, ArrowRight, Pencil, Upload, Camera, Plus, X } from "lucide-react";
 import { BarcodeScannerModal } from "@/components/pos/BarcodeScannerModal";
+import { CameraCaptureModal } from "./CameraCaptureModal";
 import { cn } from "@/lib/cn";
 
 type Supplier = { id: string; name: string; phone: string | null };
@@ -40,6 +41,7 @@ export function ProductFormModal({
   const [costPrice, setCostPrice] = useState("");
   const [currency, setCurrency] = useState<"SOM" | "USD">("SOM");
   const [usdRateInput, setUsdRateInput] = useState("");
+  const [usdRateHint, setUsdRateHint] = useState("");
   const [stock, setStock] = useState("");
   const [unit, setUnit] = useState<UnitOption>("dona");
   const [lowStockAt, setLowStockAt] = useState("3");
@@ -49,7 +51,7 @@ export function ProductFormModal({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [savingCategory, setSavingCategory] = useState(false);
   const [images, setImages] = useState<string[]>([]);
-  const [newImageUrl, setNewImageUrl] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [newSupplierModalOpen, setNewSupplierModalOpen] = useState(false);
@@ -87,7 +89,7 @@ export function ProductFormModal({
             ? [product.imageUrl]
             : []
       );
-      setNewImageUrl("");
+      setCameraOpen(false);
       setSupplierId("");
       setNewSupplierModalOpen(false);
       setNewSupplierName("");
@@ -107,11 +109,14 @@ export function ProductFormModal({
       .then((r) => r.json())
       .then((d) => setSuppliers(d.suppliers ?? []))
       .catch(() => {});
-    fetch("/api/store")
+    // Live CBU rate (falls back to the store's manual rate).
+    fetch("/api/usd-rate")
       .then((r) => r.json())
       .then((d) => {
-        const rate = d.store?.usdRate ?? null;
-        setUsdRateInput((prev) => prev || (rate ? String(rate) : ""));
+        const info = d.rate as { rate: number; source: "cbu" | "manual"; date?: string } | null;
+        if (!info) return;
+        setUsdRateInput((prev) => prev || String(info.rate));
+        setUsdRateHint(info.source === "cbu" ? `CBU kursi (${info.date})` : "Qo'lda kiritilgan kurs");
       })
       .catch(() => {});
   }, [open]);
@@ -132,13 +137,6 @@ export function ProductFormModal({
       reader.onload = () => setImages((prev) => [...prev, String(reader.result)]);
       reader.readAsDataURL(file);
     });
-  }
-
-  function addImageUrl() {
-    const url = newImageUrl.trim();
-    if (!url) return;
-    setImages((prev) => [...prev, url]);
-    setNewImageUrl("");
   }
 
   function removeImage(index: number) {
@@ -327,6 +325,14 @@ export function ProductFormModal({
               <Upload size={16} />
               <span className="text-[10px]">Yuklash</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
+              className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-muted hover:border-accent hover:text-accent"
+            >
+              <Camera size={16} />
+              <span className="text-[10px]">Kamera</span>
+            </button>
             <input
               ref={fileRef}
               type="file"
@@ -338,22 +344,6 @@ export function ProductFormModal({
                 e.target.value = "";
               }}
             />
-          </div>
-          <div className="mt-2 flex gap-2">
-            <Input
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              placeholder="yoki havola (URL)"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addImageUrl();
-                }
-              }}
-            />
-            <Button type="button" size="sm" variant="secondary" onClick={addImageUrl}>
-              <Plus size={14} />
-            </Button>
           </div>
         </Field>
 
@@ -460,7 +450,8 @@ export function ProductFormModal({
                 <Input type="number" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
               </Field>
               <Field label="Kurs (1$=?so'm)">
-                <Input type="number" value={usdRateInput} onChange={(e) => setUsdRateInput(e.target.value)} />
+                <Input type="number" step="any" value={usdRateInput} onChange={(e) => setUsdRateInput(e.target.value)} />
+                {usdRateHint && <p className="mt-1 text-[10px] text-muted">{usdRateHint}</p>}
               </Field>
               <Field label="Jami (so'm)">
                 <Input
@@ -582,6 +573,12 @@ export function ProductFormModal({
         </Button>
       </div>
     </Modal>
+
+    <CameraCaptureModal
+      open={cameraOpen}
+      onClose={() => setCameraOpen(false)}
+      onCapture={(dataUrl) => setImages((prev) => [...prev, dataUrl])}
+    />
     </>
   );
 }

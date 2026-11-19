@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Package } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatSom, formatDate, daysBetween } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { PaySupplierModal, type PayTarget } from "./PaySupplierModal";
 
 type Period = "today" | "week" | "month" | "all";
 
@@ -17,6 +19,9 @@ type ItemRow = {
   cash: number;
   card: number;
   credit: number;
+  debt: number;
+  debtUsd: number;
+  receiptIds: string[];
   lastPurchasedAt: string;
 };
 type Totals = {
@@ -48,11 +53,23 @@ const PERIOD_OPTIONS: [Period, string][] = [
   ["all", "Barchasi"],
 ];
 
-export function SupplierPurchasesPanel({ supplierId }: { supplierId: string }) {
+export function SupplierPurchasesPanel({
+  supplierId,
+  supplierName,
+  storeUsdRate,
+  onPaid,
+}: {
+  supplierId: string;
+  supplierName: string;
+  storeUsdRate?: number | null;
+  onPaid?: () => void;
+}) {
   const [period, setPeriod] = useState<Period>("month");
   const [items, setItems] = useState<ItemRow[] | null>(null);
   const [totals, setTotals] = useState<Totals | null>(null);
   const [loading, setLoading] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [payTarget, setPayTarget] = useState<PayTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +87,7 @@ export function SupplierPurchasesPanel({ supplierId }: { supplierId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [supplierId, period]);
+  }, [supplierId, period, reloadKey]);
 
   return (
     <div className="flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
@@ -131,7 +148,9 @@ export function SupplierPurchasesPanel({ supplierId }: { supplierId: string }) {
                     <th className="whitespace-nowrap pb-2 pr-2 font-medium">To&apos;lov</th>
                     <th className="whitespace-nowrap pb-2 pr-2 text-right font-medium">Miqdor</th>
                     <th className="whitespace-nowrap pb-2 pr-2 text-right font-medium">Summa</th>
-                    <th className="whitespace-nowrap pb-2 font-medium">Sana</th>
+                    <th className="whitespace-nowrap pb-2 pr-2 text-right font-medium">Qarz</th>
+                    <th className="whitespace-nowrap pb-2 pr-2 font-medium">Sana</th>
+                    <th className="pb-2" />
                   </tr>
                 </thead>
                 <tbody>
@@ -175,8 +194,39 @@ export function SupplierPurchasesPanel({ supplierId }: { supplierId: string }) {
                             </span>
                           )}
                         </td>
-                        <td className="whitespace-nowrap py-2 text-xs text-muted">
-                          {formatDate(lastPurchasedAt)} · {daysAgoLabel(lastPurchasedAt)}
+                        <td className="whitespace-nowrap py-2 pr-2 text-right">
+                          {item.debt > 0 || item.debtUsd > 0 ? (
+                            <span className="text-xs font-semibold text-danger">
+                              {item.debtUsd > 0 ? formatUsdAmount(item.debtUsd) : formatSom(item.debt)}
+                              {item.debtUsd > 0 && (
+                                <span className="block font-normal text-muted">{formatSom(item.debt)}</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap py-2 pr-2 text-xs text-muted">
+                          {formatDate(lastPurchasedAt)}
+                          <span className="block">{daysAgoLabel(lastPurchasedAt)}</span>
+                        </td>
+                        <td className="whitespace-nowrap py-2 text-right">
+                          {(item.debt > 0 || item.debtUsd > 0) && (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                setPayTarget({
+                                  id: supplierId,
+                                  name: supplierName,
+                                  debt: item.debt,
+                                  receiptIds: item.receiptIds,
+                                  title: `${item.productName} — qarz to'lash`,
+                                })
+                              }
+                            >
+                              To&apos;lash
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -187,6 +237,16 @@ export function SupplierPurchasesPanel({ supplierId }: { supplierId: string }) {
           </div>
         </>
       ) : null}
+
+      <PaySupplierModal
+        target={payTarget}
+        onClose={() => setPayTarget(null)}
+        onPaid={() => {
+          setReloadKey((k) => k + 1);
+          onPaid?.();
+        }}
+        storeUsdRate={storeUsdRate}
+      />
     </div>
   );
 }

@@ -35,6 +35,7 @@ export function GoodsReceiptModal({
   const [totalCost, setTotalCost] = useState("");
   const [costUsd, setCostUsd] = useState("");
   const [usdRateInput, setUsdRateInput] = useState("");
+  const [usdRateHint, setUsdRateHint] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "CREDIT">("CASH");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -46,7 +47,20 @@ export function GoodsReceiptModal({
       setCurrency("som");
       setTotalCost("");
       setCostUsd("");
-      setUsdRateInput(storeUsdRate ? String(storeUsdRate) : "");
+      const initialRate = storeUsdRate ? String(storeUsdRate) : "";
+      setUsdRateInput(initialRate);
+      setUsdRateHint("");
+      // Apply the live CBU rate (the form's rate field starts out as the store's
+      // manual rate, which is only a fallback).
+      fetch("/api/usd-rate")
+        .then((res) => res.json())
+        .then((d) => {
+          const info = d.rate as { rate: number; source: "cbu" | "manual"; date?: string } | null;
+          if (!info) return;
+          setUsdRateInput((prev) => (prev === initialRate ? String(info.rate) : prev));
+          setUsdRateHint(info.source === "cbu" ? `CBU kursi (${info.date})` : "Qo'lda kiritilgan kurs");
+        })
+        .catch(() => {});
       setPaymentMethod("CASH");
       setError("");
       const initial = initialProductId ? products.find((p) => p.id === initialProductId) : undefined;
@@ -63,8 +77,11 @@ export function GoodsReceiptModal({
   }
 
   const parsedUsdRate = Number(usdRateInput || 0);
+  // In dollar mode "Narx ($)" is the price of ONE unit: total = qty x price.
+  const qtyNum = Math.max(0, Number(qty) || 0);
+  const totalUsd = Math.round(Number(costUsd || 0) * qtyNum * 100) / 100;
   const effectiveTotalCost =
-    currency === "usd" && parsedUsdRate > 0 ? Math.round(Number(costUsd || 0) * parsedUsdRate) : Number(totalCost || 0);
+    currency === "usd" && parsedUsdRate > 0 ? Math.round(totalUsd * parsedUsdRate) : Number(totalCost || 0);
 
   async function save() {
     if (!supplierId || !productName.trim() || !qty || !effectiveTotalCost) {
@@ -87,7 +104,7 @@ export function GoodsReceiptModal({
         qty,
         totalCost: effectiveTotalCost,
         currency,
-        costUsd: currency === "usd" ? Number(costUsd) : undefined,
+        costUsd: currency === "usd" ? totalUsd : undefined,
         usdRate: currency === "usd" ? parsedUsdRate : undefined,
         paymentMethod,
       }),
@@ -156,22 +173,31 @@ export function GoodsReceiptModal({
         </div>
 
         {currency === "usd" ? (
-          <div className="grid grid-cols-3 gap-2">
-            <Field label="Narx ($)">
-              <Input type="number" value={costUsd} onChange={(e) => setCostUsd(e.target.value)} />
-            </Field>
-            <Field label="Kurs (1$=?so'm)">
-              <Input type="number" value={usdRateInput} onChange={(e) => setUsdRateInput(e.target.value)} />
-            </Field>
-            <Field label="Jami (so'm)">
-              <Input
-                type="text"
-                value={effectiveTotalCost ? effectiveTotalCost.toLocaleString("en-US") : ""}
-                readOnly
-                disabled
-              />
-            </Field>
-          </div>
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="Narx ($, 1 dona)">
+                <Input type="number" value={costUsd} onChange={(e) => setCostUsd(e.target.value)} />
+              </Field>
+              <Field label="Kurs (1$=?so'm)">
+                <Input type="number" step="any" value={usdRateInput} onChange={(e) => setUsdRateInput(e.target.value)} />
+                {usdRateHint && <p className="mt-1 text-[10px] text-muted">{usdRateHint}</p>}
+              </Field>
+              <Field label="Jami (so'm)">
+                <Input
+                  type="text"
+                  value={effectiveTotalCost ? effectiveTotalCost.toLocaleString("en-US") : ""}
+                  readOnly
+                  disabled
+                />
+              </Field>
+            </div>
+            {totalUsd > 0 && (
+              <p className="-mt-1 text-xs text-muted">
+                Jami: <span className="font-semibold text-foreground">${totalUsd.toLocaleString("en-US")}</span> ({qtyNum} × $
+                {Number(costUsd).toLocaleString("en-US")})
+              </p>
+            )}
+          </>
         ) : (
           <Field label="Umumiy summa (so'm)">
             <Input type="number" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} />

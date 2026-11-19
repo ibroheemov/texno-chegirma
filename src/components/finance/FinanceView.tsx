@@ -236,6 +236,8 @@ export function LedgerFormModal({
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -246,6 +248,8 @@ export function LedgerFormModal({
       setMethod("CASH");
       setAmount("");
       setCategory("");
+      setAddingCategory(false);
+      setNewCategory("");
       setNote("");
       setError("");
     }
@@ -259,6 +263,18 @@ export function LedgerFormModal({
       .then((data) => setCategoryOptions(data.categories ?? []))
       .catch(() => {});
   }, [open, direction]);
+
+  function addCategory() {
+    const name = newCategory.trim();
+    if (!name) return;
+    // Categories are derived from saved entries, so a new one becomes
+    // permanent once an entry using it is saved.
+    const existing = categoryOptions.find((c) => c.toLowerCase() === name.toLowerCase());
+    if (!existing) setCategoryOptions((prev) => [...prev, name].sort());
+    setCategory(existing ?? name);
+    setNewCategory("");
+    setAddingCategory(false);
+  }
 
   async function save() {
     if (!amount) {
@@ -318,17 +334,44 @@ export function LedgerFormModal({
         </Field>
         <Field label="Kategoriya (ixtiyoriy)">
           <>
-            <Input
-              list="ledger-category-options"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Masalan: Ofis xarajati"
-            />
-            <datalist id="ledger-category-options">
-              {categoryOptions.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
+            <div className="flex items-center gap-2">
+              <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full flex-1">
+                <option value="">Kategoriyasiz</option>
+                {Array.from(new Set([...categoryOptions, ...(category ? [category] : [])])).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </Select>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setAddingCategory((v) => !v)}
+                aria-label="Yangi kategoriya"
+                title="Yangi kategoriya"
+              >
+                <Plus size={14} />
+              </Button>
+            </div>
+            {addingCategory && (
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="Yangi kategoriya nomi"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addCategory();
+                    }
+                  }}
+                />
+                <Button type="button" onClick={addCategory} disabled={!newCategory.trim()}>
+                  Qo&apos;shish
+                </Button>
+              </div>
+            )}
           </>
         </Field>
         <Field label="Izoh (ixtiyoriy)">
