@@ -1,13 +1,15 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getInventorySummary } from "@/lib/stats";
-import { getUsdRate } from "@/lib/usdRate";
+import { getUsdRate, syncUsdPrices } from "@/lib/usdRate";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
 import { InventorySummaryCards } from "@/components/inventory/InventorySummaryCards";
 
 export default async function OmborPage() {
   const session = await getSession();
   if (!session) return null;
+
+  await syncUsdPrices(session.storeId);
 
   const [products, categories, summary, store] = await Promise.all([
     prisma.product.findMany({
@@ -28,7 +30,7 @@ export default async function OmborPage() {
         totalSaleValue={summary.totalSaleValue}
         usdRateInfo={usdRateInfo}
       />
-      <InventoryTable initialProducts={products} categories={categories} usdRate={store?.usdRate} />
+      <InventoryTable initialProducts={products} categories={categories} usdRate={usdRateInfo?.rate ?? store?.usdRate} />
     </div>
   );
 }

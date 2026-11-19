@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { syncUsdPrices } from "@/lib/usdRate";
 import { StorefrontView } from "@/components/storefront/StorefrontView";
 import { TelegramWebAppInit } from "@/components/storefront/TelegramWebAppInit";
 import { Logo } from "@/components/ui/Logo";
@@ -15,6 +16,8 @@ export default async function StorefrontPage() {
       </div>
     );
   }
+
+  await syncUsdPrices(store.id);
 
   const [products, categories] = await Promise.all([
     prisma.product.findMany({

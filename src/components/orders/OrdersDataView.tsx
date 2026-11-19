@@ -16,6 +16,7 @@ type Period = "all" | "today" | "week" | "month";
 type OrderItem = { name: string; qty: number; price: number };
 type Order = {
   id: string;
+  number: number;
   customerName: string;
   customerPhone: string;
   customerAddress: string | null;
@@ -201,7 +202,7 @@ export function OrdersDataView({ variant }: { variant: "orders" | "delivery" }) 
               <tbody>
                 {orders.map((o) => (
                   <tr key={o.id} className="border-b border-border/60 last:border-0">
-                    <td className="py-2.5 pr-3 font-mono text-xs text-muted">#{o.id.slice(-6).toUpperCase()}</td>
+                    <td className="py-2.5 pr-3 font-mono text-xs text-muted">#{o.number}</td>
                     <td className="py-2.5 pr-3">
                       <div className="flex items-center gap-1.5">
                         <p className="font-medium">{o.customerName}</p>

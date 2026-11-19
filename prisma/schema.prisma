@@ -80,6 +80,7 @@ model Store {
   receipts   GoodsReceipt[]
   handovers  CashHandover[]
   telegramSessions TelegramSession[]
+  salaryPayments SalaryPayment[]
 }
 
 // Per-chat state for the Telegram shopping bot. A bot webhook handles one
@@ -106,6 +107,8 @@ model TelegramSession {
 
 model OnlineOrder {
   id              String        @id @default(cuid())
+  // Human-friendly sequential order number (1, 2, 3...) shown in the #ID column.
+  number          Int           @default(autoincrement())
   storeId         String
   store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customerName    String
@@ -165,6 +168,9 @@ model Product {
   barcodePrice Int?
   onSale       Boolean  @default(false)
   salePrice    Int?
+  // Set for products priced in dollars: the USD/UZS rate their so'm prices
+  // were last calculated at. Prices are rescaled whenever the CBU rate moves.
+  usdRate      Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -384,6 +390,7 @@ model Employee {
   deliveries OnlineOrder[]
   sales      Sale[]
   creditPayments CreditPayment[]
+  salaryPayments SalaryPayment[]
 }
 
 model Attendance {
@@ -400,4 +407,21 @@ model Attendance {
   faceVerified Boolean?
 
   @@unique([employeeId, date])
+}
+
+// A salary payout to an employee. Also recorded as a LedgerEntry (OUT,
+// category "Oylik") so it shows up in Moliya.
+model SalaryPayment {
+  id            String        @id @default(cuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount        Int
+  method        PaymentMethod @default(CASH)
+  note          String?
+  ledgerEntryId String?
+  createdAt     DateTime      @default(now())
+
+  @@index([storeId, employeeId, createdAt])
 }

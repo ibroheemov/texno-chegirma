@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { SUPPLIER_PAYMENT_CATEGORY } from "@/lib/stats";
+import { syncUsdPrices } from "@/lib/usdRate";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
       : {}),
   };
 
+  await syncUsdPrices(session.storeId);
   let products = await prisma.product.findMany({
     where,
     orderBy: { name: "asc" },
@@ -66,6 +68,8 @@ export async function POST(req: NextRequest) {
   const currency = body.currency === "usd" ? "usd" : "som";
   const costUsdPerUnit = currency === "usd" && Number(body.costUsd) > 0 ? Number(body.costUsd) : null;
   const usdRate = currency === "usd" && Number(body.usdRate) > 0 ? Math.round(Number(body.usdRate)) : null;
+  // Dollar-priced products keep their prices in sync with the CBU rate.
+  const productUsdRate = currency === "usd" && Number(body.usdRate) > 0 ? Number(body.usdRate) : null;
 
   let supplier = null;
   if (supplierId) {
@@ -90,6 +94,7 @@ export async function POST(req: NextRequest) {
         barcodePrice: body.barcodePrice ? Number(body.barcodePrice) : null,
         onSale: Boolean(body.onSale),
         salePrice: body.onSale && body.salePrice ? Number(body.salePrice) : null,
+        usdRate: productUsdRate,
       },
     });
 

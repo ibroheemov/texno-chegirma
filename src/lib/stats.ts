@@ -8,6 +8,7 @@ import { formatDate } from "./format";
 // Sale/SaleItem.costPrice at sale time — counting it again here would
 // double-count it against profit.
 export const SUPPLIER_PAYMENT_CATEGORY = "Tovar xaridi";
+export const SALARY_CATEGORY = "Oylik";
 
 // Ledger entries tagged with this category are the cash reversal created
 // when a sale is canceled (money handed back to the customer). The original

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getUsdRate, syncUsdPrices } from "@/lib/usdRate";
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[id]">) {
   const session = await getSession();
@@ -12,6 +13,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
   const product = await prisma.product.findFirst({ where: { id, storeId: session.storeId } });
   if (!product) return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
 
+  // Prices were synced when the list loaded; re-sync so a manual edit is based
+  // on the current rate, then re-anchor the product to it after saving.
+  await syncUsdPrices(session.storeId);
   const images: string[] = Array.isArray(body.images) ? body.images.filter((u: unknown) => typeof u === "string") : [];
 
   const updated = await prisma.product.update({
@@ -32,6 +36,13 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
       salePrice: body.onSale && body.salePrice ? Number(body.salePrice) : null,
     },
   });
+
+  if (product.usdRate != null) {
+    const info = await getUsdRate(null);
+    if (info?.source === "cbu") {
+      await prisma.product.update({ where: { id }, data: { usdRate: info.rate } });
+    }
+  }
 
   return NextResponse.json({ product: updated });
 }

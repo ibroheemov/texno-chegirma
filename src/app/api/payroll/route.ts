@@ -25,6 +25,18 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // Salary already paid out inside the selected period.
+  const paidAgg = await prisma.salaryPayment.groupBy({
+    by: ["employeeId"],
+    where: {
+      storeId: session.storeId,
+      employeeId: { in: employees.map((e) => e.id) },
+      createdAt: { gte: periodStart },
+    },
+    _sum: { amount: true },
+  });
+  const paidMap = new Map(paidAgg.map((a) => [a.employeeId, a._sum.amount ?? 0]));
+
   const rows = employees.map((e) => {
     const rangeStart = startOfDay(e.createdAt) > periodStart ? startOfDay(e.createdAt) : periodStart;
     const elapsedDays = Math.max(0, Math.round((today.getTime() - rangeStart.getTime()) / 86400000) + 1);
@@ -33,6 +45,7 @@ export async function GET(req: NextRequest) {
     const dailyRate = e.salaryType === "DAILY" ? e.salary : Math.round(e.salary / MONTHLY_DIVISOR);
     const deduction = absentDays * dailyRate;
     const pay = dailyRate * presentDays;
+    const paid = paidMap.get(e.id) ?? 0;
     return {
       id: e.id,
       name: e.name,
@@ -42,6 +55,8 @@ export async function GET(req: NextRequest) {
       absentDays,
       deduction,
       pay,
+      paid,
+      remaining: Math.max(0, pay - paid),
     };
   });
 
@@ -49,6 +64,7 @@ export async function GET(req: NextRequest) {
     employeeCount: rows.length,
     totalAbsentDays: rows.reduce((sum, r) => sum + r.absentDays, 0),
     totalPay: rows.reduce((sum, r) => sum + r.pay, 0),
+    totalPaid: rows.reduce((sum, r) => sum + r.paid, 0),
   };
 
   return NextResponse.json({ rows, totals });

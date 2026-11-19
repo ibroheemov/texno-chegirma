@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDaySummary } from "@/lib/stats";
+import { syncUsdPrices } from "@/lib/usdRate";
 import { KassaStats } from "@/components/pos/KassaStats";
 import { PosView } from "@/components/pos/PosView";
 import { PendingOrders } from "@/components/orders/PendingOrders";
@@ -8,6 +9,8 @@ import { PendingOrders } from "@/components/orders/PendingOrders";
 export default async function KassaPage() {
   const session = await getSession();
   if (!session) return null;
+
+  await syncUsdPrices(session.storeId);
 
   const today = new Date();
   const yesterday = new Date(today);

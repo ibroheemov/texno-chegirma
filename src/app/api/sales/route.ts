@@ -1,3 +1,4 @@
+import { syncUsdPrices } from "@/lib/usdRate";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
     if (!employee) return NextResponse.json({ error: "Sotuvchi topilmadi" }, { status: 400 });
   }
 
+  await syncUsdPrices(session.storeId);
   const productIds = items.map((i) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds }, storeId: session.storeId },
