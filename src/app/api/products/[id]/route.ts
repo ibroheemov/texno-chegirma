@@ -38,8 +38,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
   });
 
   if (product.usdRate != null) {
-    const info = await getUsdRate(null);
-    if (info?.source === "cbu") {
+    const info = await getUsdRate(session.storeId);
+    if (info?.source === "cbu" || info?.source === "telegram") {
       await prisma.product.update({ where: { id }, data: { usdRate: info.rate } });
     }
   }

@@ -2,7 +2,6 @@ import { syncUsdPrices } from "@/lib/usdRate";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { addBusinessDays } from "@/lib/businessDays";
 
 type CartItem = { productId: string; qty: number };
 
@@ -27,14 +26,20 @@ export async function POST(req: NextRequest) {
     where: { id: session.storeId },
     select: { deferredPaymentMethods: true },
   });
-  const deferredConfig: Record<string, number> =
+  const deferredConfig: Record<string, boolean> =
     store?.deferredPaymentMethods && typeof store.deferredPaymentMethods === "object"
-      ? (store.deferredPaymentMethods as Record<string, number>)
+      ? (store.deferredPaymentMethods as Record<string, boolean>)
       : {};
   const deferredEntries = Object.entries(customAmounts).filter(([name]) => name in deferredConfig);
   const instantCustomTotal = Object.entries(customAmounts)
     .filter(([name]) => !(name in deferredConfig))
     .reduce((sum, [, v]) => sum + v, 0);
+
+  const settlementDate: string | undefined = body.settlementDate;
+  const settlementNote: string = typeof body.settlementNote === "string" ? body.settlementNote.trim() : "";
+  if (deferredEntries.length > 0 && !settlementDate) {
+    return NextResponse.json({ error: "Pul kelish sanasini tanlang" }, { status: 400 });
+  }
 
   const dueDate: string | undefined = body.dueDate;
   const needsDelivery: boolean = Boolean(body.needsDelivery);
@@ -135,7 +140,8 @@ export async function POST(req: NextRequest) {
           saleId: created.id,
           methodName,
           amount,
-          expectedDate: addBusinessDays(new Date(), deferredConfig[methodName] ?? 7),
+          expectedDate: new Date(settlementDate!),
+          note: settlementNote || null,
         },
       });
     }

@@ -40,6 +40,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/suppliers/[
     const somEquivalent = await prisma.$transaction(async (tx) => {
       let remainingUsd = amount;
       let somTotal = 0;
+      const allocations: { receiptId: string; amount: number }[] = [];
       for (const r of payable) {
         if (remainingUsd <= 0) break;
         const dueUsd = (r.costUsd ?? 0) - r.paidUsd;
@@ -50,10 +51,12 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/suppliers/[
           where: { id: r.id },
           data: { paidUsd: { increment: payUsd }, paidAmount: { increment: paySom } },
         });
+        allocations.push({ receiptId: r.id, amount: paySom });
         somTotal += paySom;
         remainingUsd -= payUsd;
       }
 
+      const note = `Ta'minotchiga to'lov: ${supplier.name} ($${amount.toFixed(2)})`;
       await tx.ledgerEntry.create({
         data: {
           storeId: session.storeId,
@@ -61,7 +64,18 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/suppliers/[
           amount: somTotal,
           method,
           category: SUPPLIER_PAYMENT_CATEGORY,
-          note: `Ta'minotchiga to'lov: ${supplier.name} ($${amount.toFixed(2)})`,
+          note,
+        },
+      });
+      await tx.supplierPayment.create({
+        data: {
+          storeId: session.storeId,
+          supplierId: id,
+          amount: somTotal,
+          method,
+          paidUsd: amount,
+          note,
+          receipts: { create: allocations },
         },
       });
 
@@ -85,11 +99,13 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/suppliers/[
 
   await prisma.$transaction(async (tx) => {
     let remaining = amount;
+    const allocations: { receiptId: string; amount: number }[] = [];
     for (const r of payable) {
       if (remaining <= 0) break;
       const due = r.totalCost - r.paidAmount;
       const pay = Math.min(due, remaining);
       await tx.goodsReceipt.update({ where: { id: r.id }, data: { paidAmount: { increment: pay } } });
+      allocations.push({ receiptId: r.id, amount: pay });
       remaining -= pay;
     }
 
@@ -101,6 +117,16 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/suppliers/[
         method,
         category: SUPPLIER_PAYMENT_CATEGORY,
         note,
+      },
+    });
+    await tx.supplierPayment.create({
+      data: {
+        storeId: session.storeId,
+        supplierId: id,
+        amount,
+        method,
+        note,
+        receipts: { create: allocations },
       },
     });
   });

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { Product } from "@prisma/client";
-import { Loader2, Plus, Truck, Phone, ChevronDown } from "lucide-react";
+import { Loader2, Plus, Truck, Phone, ChevronDown, PackageCheck } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { StatCard } from "@/components/ui/StatCard";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input } from "@/components/ui/Field";
 import { formatSom } from "@/lib/format";
@@ -28,6 +29,7 @@ type SupplierRow = {
   debtUsd: number;
   debtUsdEstimated: boolean;
   receiptsCount: number;
+  stockValue: number;
 };
 
 function formatUsd(somAmount: number, usdRate: number) {
@@ -48,6 +50,7 @@ export function TovarBeruvchiTab({
   showDebtInUsdOnly?: boolean;
 }) {
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
+  const [expenses, setExpenses] = useState(0);
   const [loading, setLoading] = useState(true);
   const [addSupplierOpen, setAddSupplierOpen] = useState(false);
   const [addReceiptOpen, setAddReceiptOpen] = useState(false);
@@ -65,6 +68,10 @@ export function TovarBeruvchiTab({
 
   useEffect(() => {
     load(true);
+    fetch("/api/ledger?period=all")
+      .then((res) => res.json())
+      .then((data) => setExpenses(data.balances?.expenses ?? 0))
+      .catch(() => {});
   }, []);
 
   const totalRecorded = suppliers.reduce((s, x) => s + x.totalAmount, 0);
@@ -88,6 +95,8 @@ export function TovarBeruvchiTab({
 
   return (
     <div className="flex flex-col gap-4">
+      <StatCard label="Chiqarilgan" value={formatSom(expenses)} icon={PackageCheck} />
+
       <Card className="p-4">
         <p className="text-sm font-semibold text-muted">Qayd etilgan kirimlar</p>
         <p className="mt-1 text-2xl font-bold">
@@ -179,6 +188,9 @@ export function TovarBeruvchiTab({
                 {s.cash > 0 && <span>Naqd: {formatSom(s.cash)}</span>}
                 {s.card > 0 && <span>Karta: {formatSom(s.card)}</span>}
               </div>
+              <p className="mt-1 text-xs text-muted">
+                Omborda qoldiq qiymati: <span className="font-semibold text-foreground">{formatSom(s.stockValue)}</span>
+              </p>
               {s.debt > 0 ? (
                 <div className="mt-3 flex items-center justify-between border-t border-dashed border-border pt-3">
                   <div className="flex flex-col items-start gap-1">
@@ -294,4 +306,3 @@ function AddSupplierModal({
     </Modal>
   );
 }
-

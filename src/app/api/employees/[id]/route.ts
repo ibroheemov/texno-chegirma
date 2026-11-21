@@ -19,6 +19,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/
       phone: body.phone || null,
       salary: Number(body.salary ?? employee.salary),
       salaryType: body.salaryType === "DAILY" ? "DAILY" : body.salaryType === "MONTHLY" ? "MONTHLY" : employee.salaryType,
+      workStartTime: body.workStartTime !== undefined ? body.workStartTime || null : employee.workStartTime,
+      workEndTime: body.workEndTime !== undefined ? body.workEndTime || null : employee.workEndTime,
       login: body.login || employee.login,
       passwordHash: body.password ? await bcrypt.hash(String(body.password), 10) : employee.passwordHash,
       isCourier: body.isCourier ?? employee.isCourier,

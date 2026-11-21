@@ -26,7 +26,7 @@ export default async function SozlamalarPage() {
       : null,
     deferredPaymentMethods:
       store.deferredPaymentMethods && typeof store.deferredPaymentMethods === "object"
-        ? (store.deferredPaymentMethods as Record<string, number>)
+        ? (store.deferredPaymentMethods as Record<string, boolean>)
         : null,
   };
 

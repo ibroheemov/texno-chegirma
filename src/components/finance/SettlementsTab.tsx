@@ -17,6 +17,7 @@ type PendingRow = {
   methodName: string;
   amount: number;
   expectedDate: string;
+  note: string | null;
   overdue: boolean;
   createdAt: string;
 };
@@ -27,6 +28,7 @@ type ReceivedRow = {
   customerName: string | null;
   methodName: string;
   amount: number;
+  note: string | null;
   receivedAt: string;
   receivedMethod: "CASH" | "CARD" | null;
 };
@@ -124,7 +126,10 @@ export function SettlementsTab() {
               <tbody>
                 {(data?.pending ?? []).map((r) => (
                   <tr key={r.id} className="border-b border-border/60 last:border-0">
-                    <td className="py-2.5 pr-3 font-medium">{r.customerName ?? "—"}</td>
+                    <td className="py-2.5 pr-3 font-medium">
+                      {r.customerName ?? "—"}
+                      {r.note && <p className="mt-0.5 text-xs font-normal text-muted">{r.note}</p>}
+                    </td>
                     <td className="py-2.5 pr-3">{r.methodName}</td>
                     <td className="py-2.5 pr-3 font-semibold">{formatSom(r.amount)}</td>
                     <td className={cn("py-2.5 pr-3", r.overdue && "text-danger")}>
@@ -171,7 +176,10 @@ export function SettlementsTab() {
               <tbody>
                 {(data?.received ?? []).map((r) => (
                   <tr key={r.id} className="border-b border-border/60 last:border-0">
-                    <td className="py-2.5 pr-3 font-medium">{r.customerName ?? "—"}</td>
+                    <td className="py-2.5 pr-3 font-medium">
+                      {r.customerName ?? "—"}
+                      {r.note && <p className="mt-0.5 text-xs font-normal text-muted">{r.note}</p>}
+                    </td>
                     <td className="py-2.5 pr-3">{r.methodName}</td>
                     <td className="py-2.5 pr-3 font-semibold">{formatSom(r.amount)}</td>
                     <td className="py-2.5 pr-3 text-muted">

@@ -5,6 +5,34 @@ import { moliyaPeriodStart, startOfDay } from "@/lib/stats";
 
 const MONTHLY_DIVISOR = 30;
 
+function parseTimeToMinutes(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+// How much of the scheduled shift an attendance record actually covers, as a
+// fraction in [0, 1]. Missing clock-out data or no configured schedule means
+// there's nothing to compare against, so it counts as a full day — this only
+// docks pay when we can actually see the employee arrived late or left early.
+function shiftFraction(
+  checkIn: Date | null,
+  checkOut: Date | null,
+  startTime: string | null,
+  endTime: string | null
+): number {
+  if (!startTime || !endTime || !checkIn || !checkOut) return 1;
+  const schedStart = parseTimeToMinutes(startTime);
+  const schedEnd = parseTimeToMinutes(endTime);
+  if (schedStart == null || schedEnd == null || schedEnd <= schedStart) return 1;
+
+  const inMin = checkIn.getHours() * 60 + checkIn.getMinutes();
+  const outMin = checkOut.getHours() * 60 + checkOut.getMinutes();
+  const overlap = Math.max(0, Math.min(outMin, schedEnd) - Math.max(inMin, schedStart));
+  const scheduled = schedEnd - schedStart;
+  return Math.min(1, overlap / scheduled);
+}
+
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -44,7 +72,18 @@ export async function GET(req: NextRequest) {
     const absentDays = Math.max(0, elapsedDays - presentDays);
     const dailyRate = e.salaryType === "DAILY" ? e.salary : Math.round(e.salary / MONTHLY_DIVISOR);
     const deduction = absentDays * dailyRate;
-    const pay = dailyRate * presentDays;
+
+    let partialDays = 0;
+    let partialDeduction = 0;
+    for (const att of e.attendance) {
+      const fraction = shiftFraction(att.checkIn, att.checkOut, e.workStartTime, e.workEndTime);
+      if (fraction < 1) {
+        partialDays += 1;
+        partialDeduction += Math.round(dailyRate * (1 - fraction));
+      }
+    }
+
+    const pay = dailyRate * presentDays - partialDeduction;
     const paid = paidMap.get(e.id) ?? 0;
     return {
       id: e.id,
@@ -54,6 +93,8 @@ export async function GET(req: NextRequest) {
       presentDays,
       absentDays,
       deduction,
+      partialDays,
+      partialDeduction,
       pay,
       paid,
       remaining: Math.max(0, pay - paid),
@@ -63,6 +104,7 @@ export async function GET(req: NextRequest) {
   const totals = {
     employeeCount: rows.length,
     totalAbsentDays: rows.reduce((sum, r) => sum + r.absentDays, 0),
+    totalPartialDeduction: rows.reduce((sum, r) => sum + r.partialDeduction, 0),
     totalPay: rows.reduce((sum, r) => sum + r.pay, 0),
     totalPaid: rows.reduce((sum, r) => sum + r.paid, 0),
   };

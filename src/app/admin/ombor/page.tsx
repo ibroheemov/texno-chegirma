@@ -21,7 +21,7 @@ export default async function OmborPage() {
     getInventorySummary(session.storeId),
     prisma.store.findUnique({ where: { id: session.storeId } }),
   ]);
-  const usdRateInfo = await getUsdRate(store?.usdRate);
+  const usdRateInfo = await getUsdRate(session.storeId);
 
   return (
     <div className="flex flex-col gap-6">

@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       isCourier: Boolean(body.isCourier),
       salary: Number(body.salary ?? 0),
       salaryType: body.salaryType === "DAILY" ? "DAILY" : "MONTHLY",
+      workStartTime: body.workStartTime || null,
+      workEndTime: body.workEndTime || null,
       photoUrl: body.photoUrl || null,
       faceDescriptor: body.faceDescriptor || null,
       allowedLocationName: body.allowedLocationName || null,

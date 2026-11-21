@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Category, Product } from "@prisma/client";
-import { ShoppingCart, Plus, Minus, Trash2, Loader2, CheckCircle2, Search } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, Loader2, CheckCircle2, Search, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -149,9 +149,29 @@ function CartDrawer({
     const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
     return user ? [user.first_name, user.last_name].filter(Boolean).join(" ") : "";
   });
+
+  // In a private chat with the bot, Telegram's chat id equals the user's own
+  // id — the same id the bot stores as Customer.telegramChatId when the user
+  // registers. Prefer the full name they gave the bot over their raw Telegram
+  // profile name, once it loads.
+  useEffect(() => {
+    const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (!userId) return;
+    fetch(`/api/public/telegram-customer?chatId=${userId}`)
+      .then((res) => res.json())
+      .then((data: { name: string | null }) => {
+        if (data.name) setName(data.name);
+      })
+      .catch(() => {});
+  }, []);
+
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD">("CASH");
+  const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "INSTALLMENT">("CASH");
+  const [installmentMonths, setInstallmentMonths] = useState<3 | 6 | 12>(3);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -167,6 +187,36 @@ function CartDrawer({
             : l
         )
         .filter((l) => l.qty > 0)
+    );
+  }
+
+  function detectLocation() {
+    if (!navigator.geolocation) {
+      setLocationError("Qurilmangiz joylashuvni aniqlay olmaydi");
+      return;
+    }
+    setLocating(true);
+    setLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setMapCoords({ lat: latitude, lng: longitude });
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=uz`
+          );
+          const data = await res.json();
+          if (data?.display_name) setAddress(data.display_name);
+        } catch {
+          // Reverse geocoding failed — the map pin is still shown, customer can type the address manually.
+        }
+        setLocating(false);
+      },
+      () => {
+        setLocationError("Joylashuvga ruxsat berilmadi yoki aniqlab bo'lmadi");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
@@ -188,7 +238,8 @@ function CartDrawer({
         customerName: name,
         customerPhone: phone,
         customerAddress: address,
-        paymentMethod,
+        paymentMethod: paymentMethod === "INSTALLMENT" ? "CUSTOM" : paymentMethod,
+        installmentMonths: paymentMethod === "INSTALLMENT" ? installmentMonths : undefined,
         items: cart.map((l) => ({ productId: l.product.id, name: l.product.name, qty: l.qty, price: l.product.price })),
       }),
     });
@@ -202,7 +253,10 @@ function CartDrawer({
     setName("");
     setPhone("");
     setAddress("");
+    setMapCoords(null);
+    setLocationError("");
     setPaymentMethod("CASH");
+    setInstallmentMonths(3);
     setSuccess(true);
   }
 
@@ -284,9 +338,30 @@ function CartDrawer({
               </Field>
               <Field label="Yetkazib berish manzili (ixtiyoriy)">
                 <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Mahalla, ko'cha, uy..." />
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  disabled={locating}
+                  className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-accent disabled:opacity-60"
+                >
+                  {locating ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
+                  {locating ? "Joylashuv aniqlanmoqda..." : "Joylashuvimni xaritadan aniqlash"}
+                </button>
+                {locationError && <p className="mt-1 text-xs text-danger">{locationError}</p>}
+                {mapCoords && (
+                  <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                    <iframe
+                      key={`${mapCoords.lat},${mapCoords.lng}`}
+                      title="Joylashuv xaritasi"
+                      className="h-40 w-full"
+                      loading="lazy"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapCoords.lng - 0.01}%2C${mapCoords.lat - 0.01}%2C${mapCoords.lng + 0.01}%2C${mapCoords.lat + 0.01}&layer=mapnik&marker=${mapCoords.lat}%2C${mapCoords.lng}`}
+                    />
+                  </div>
+                )}
               </Field>
               <Field label="To'lov usuli">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod("CASH")}
@@ -307,8 +382,45 @@ function CartDrawer({
                   >
                     Karta
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("INSTALLMENT")}
+                    className={cn(
+                      "rounded-lg border border-border py-2 text-xs font-medium text-muted",
+                      paymentMethod === "INSTALLMENT" && "border-accent bg-accent-soft text-accent"
+                    )}
+                  >
+                    Muddatli to&apos;lov
+                  </button>
                 </div>
               </Field>
+
+              {paymentMethod === "INSTALLMENT" && (
+                <div className="rounded-lg bg-surface-muted p-3">
+                  <p className="text-xs font-medium text-muted">Necha oyga bo&apos;lib to&apos;lamoqchisiz?</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {([3, 6, 12] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setInstallmentMonths(m)}
+                        className={cn(
+                          "rounded-lg border border-border py-2 text-sm font-medium text-muted",
+                          installmentMonths === m && "border-accent bg-accent-soft text-accent"
+                        )}
+                      >
+                        {m} oy
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-sm">
+                    Oyiga to&apos;lov:{" "}
+                    <span className="font-bold text-accent">
+                      {formatSom(Math.ceil(total / installmentMonths))}
+                    </span>
+                  </p>
+                </div>
+              )}
               {error && <p className="text-sm text-danger">{error}</p>}
               <Button size="lg" disabled={submitting || cart.length === 0} onClick={submit}>
                 {submitting && <Loader2 size={16} className="animate-spin" />}

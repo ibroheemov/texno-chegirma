@@ -15,7 +15,9 @@ export function InventorySummaryCards({
   const usdSub = usdRateInfo
     ? usdRateInfo.source === "cbu"
       ? ` · CBU kursi: 1$=${usdRateInfo.rate.toLocaleString("en-US")} so'm (${usdRateInfo.date})`
-      : " · qo'lda kiritilgan kurs"
+      : usdRateInfo.source === "telegram"
+        ? ` · Bozor kursi: 1$=${usdRateInfo.rate.toLocaleString("en-US")} so'm`
+        : " · qo'lda kiritilgan kurs"
     : "";
 
   const items = [

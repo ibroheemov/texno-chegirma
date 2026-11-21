@@ -14,6 +14,7 @@ type Order = {
   customerPhone: string;
   items: Item[];
   total: number;
+  installmentMonths: number | null;
   createdAt: string;
 };
 
@@ -89,6 +90,12 @@ export function PendingOrders({ soundAlert = true }: { soundAlert?: boolean }) {
               <p className="mt-1 text-xs text-muted">
                 {o.items.map((i) => `${i.name} ×${i.qty}`).join(", ")}
               </p>
+              {o.installmentMonths && (
+                <p className="mt-1 text-xs font-medium text-warning">
+                  Muddatli to&apos;lov: {o.installmentMonths} oy ·{" "}
+                  {formatSom(Math.ceil(o.total / o.installmentMonths))}/oy
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-accent">{formatSom(o.total)}</span>

@@ -34,7 +34,7 @@ import { GoodsReceiptModal, type SupplierOption } from "./GoodsReceiptModal";
 import { exportProductsToExcel } from "@/lib/exportExcel";
 
 type ProductWithCategory = Product & { category: Category | null };
-type StatusFilter = "all" | "available" | "low" | "out";
+type StatusFilter = "all" | "available" | "low" | "out" | "discount";
 type SoldItemRow = { productId: string; qty: number };
 
 function stockBadge(p: Product) {
@@ -123,6 +123,7 @@ export function InventoryTable({
       if (status === "available" && p.stock <= 0) return false;
       if (status === "low" && !(p.stock > 0 && p.stock <= p.lowStockAt)) return false;
       if (status === "out" && p.stock > 0) return false;
+      if (status === "discount" && !p.onSale) return false;
       if (query) {
         const q = query.toLowerCase();
         if (!p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false;
@@ -137,8 +138,11 @@ export function InventoryTable({
   }, [initialProducts, status, query, filters]);
 
   const sorted = useMemo(() => {
-    if (!sortBySold) return filtered;
-    return [...filtered].sort((a, b) => (soldMap[b.id] ?? 0) - (soldMap[a.id] ?? 0));
+    return [...filtered].sort((a, b) => {
+      if (a.onSale !== b.onSale) return a.onSale ? -1 : 1;
+      if (sortBySold) return (soldMap[b.id] ?? 0) - (soldMap[a.id] ?? 0);
+      return 0;
+    });
   }, [filtered, sortBySold, soldMap]);
 
   function openAdd() {
@@ -201,6 +205,7 @@ export function InventoryTable({
           [
             ["all", "Barchasi"],
             ["available", "Mavjud"],
+            ["discount", "Chegirmada"],
             ["low", "Kam qolgan"],
             ["out", "Tugagan"],
           ] as [StatusFilter, string][]

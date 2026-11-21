@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, TrendingUp, TrendingDown, Package, Printer } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Package, Eye } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { formatSom } from "@/lib/format";
+import { formatSom, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { SellerSoldItemsModal } from "./SellerSoldItemsModal";
 
 type Period = "today" | "week" | "month" | "all";
 
@@ -18,6 +18,127 @@ type Report = {
   expenseByCategory: { category: string; amount: number }[];
   dailyBreakdown: { date: string; revenue: number; expense: number; netProfit: number }[];
 };
+
+type ExpenseEntry = { id: string; amount: number; category: string | null; note: string | null; createdAt: string };
+
+function ExpensesListSection({ period }: { period: Period }) {
+  const [entries, setEntries] = useState<ExpenseEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/finance/breakdown?direction=OUT&period=${period}`)
+      .then((res) => res.json())
+      .then((json) => setEntries(json.entries ?? []))
+      .finally(() => setLoading(false));
+  }, [period]);
+
+  return (
+    <Card className="p-4">
+      <h3 className="text-sm font-semibold">Xarajatlar ro&apos;yxati</h3>
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="animate-spin text-accent" size={24} />
+        </div>
+      ) : entries.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted">Xarajat topilmadi</p>
+      ) : (
+        <div className="mt-3 flex flex-col divide-y divide-border/60">
+          {entries.map((e) => (
+            <div key={e.id} className="flex items-center justify-between py-2.5">
+              <div>
+                <p className="text-sm font-medium">{e.note || e.category || "Qo'lda kiritilgan"}</p>
+                <p className="text-xs text-muted">
+                  {e.category && <>{e.category} · </>}
+                  {formatDateTime(e.createdAt)}
+                </p>
+              </div>
+              <span className="text-sm font-semibold text-danger">-{formatSom(e.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+type SellerRow = { id: string | null; name: string; receipts: number; revenue: number; itemsQty: number };
+
+function SellerSalesSection({ period }: { period: Period }) {
+  const [rows, setRows] = useState<SellerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [detailFor, setDetailFor] = useState<SellerRow | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/finance/sellers?period=${period}`)
+      .then((res) => res.json())
+      .then((json) => setRows(json.rows ?? []))
+      .finally(() => setLoading(false));
+  }, [period]);
+
+  return (
+    <Card className="p-4">
+      <h3 className="text-sm font-semibold">Sotuvchilar bo&apos;yicha sotuvlar</h3>
+      <div className="mt-3 overflow-x-auto">
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="animate-spin text-accent" size={24} />
+          </div>
+        ) : (
+          <table className="w-full min-w-[520px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase text-muted">
+                <th className="py-2 pr-3 font-medium">Sotuvchi</th>
+                <th className="py-2 pr-3 font-medium">Cheklar</th>
+                <th className="py-2 pr-3 font-medium">Sotilgan dona</th>
+                <th className="py-2 pr-3 font-medium">Sotuv summasi</th>
+                <th className="py-2 pr-3 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id ?? "unassigned"} className="border-b border-border/60 last:border-0">
+                  <td className="py-2.5 pr-3 font-medium">{r.name}</td>
+                  <td className="py-2.5 pr-3">{r.receipts}</td>
+                  <td className="py-2.5 pr-3">{r.itemsQty}</td>
+                  <td className="py-2.5 pr-3 font-semibold">{formatSom(r.revenue)}</td>
+                  <td className="py-2.5 pr-3 text-right">
+                    <button
+                      onClick={() => setDetailFor(r)}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-accent"
+                      aria-label="Batafsil"
+                      title="Sotilgan mahsulotlarni ko'rish"
+                    >
+                      <Eye size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-muted">
+                    Ma&apos;lumot yo&apos;q
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {detailFor && (
+        <SellerSoldItemsModal
+          open={!!detailFor}
+          onClose={() => setDetailFor(null)}
+          sellerName={detailFor.name}
+          employeeId={detailFor.id}
+          period={period}
+        />
+      )}
+    </Card>
+  );
+}
 
 export function HisobotTab() {
   const [period, setPeriod] = useState<Period>("month");
@@ -36,12 +157,6 @@ export function HisobotTab() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
-
-  function print() {
-    window.print();
-  }
-
-  const maxDaily = data ? Math.max(1, ...data.dailyBreakdown.map((d) => Math.max(d.revenue, d.expense))) : 1;
 
   return (
     <div className="flex flex-col gap-4">
@@ -75,6 +190,27 @@ export function HisobotTab() {
         </div>
       ) : (
         <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Card className="p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted">
+                <TrendingUp size={14} className="text-accent" /> Tushum
+              </div>
+              <p className="mt-1 text-xl font-bold">{formatSom(data.revenue)}</p>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted">
+                <Package size={14} className="text-warning" /> Tannarx
+              </div>
+              <p className="mt-1 text-xl font-bold">{formatSom(data.cogs)}</p>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted">
+                <TrendingDown size={14} className="text-danger" /> Xarajat
+              </div>
+              <p className="mt-1 text-xl font-bold">{formatSom(data.expense)}</p>
+            </Card>
+          </div>
+
           <Card className="p-4">
             <h3 className="text-sm font-semibold">Sof foyda hisobi</h3>
             <div className="mt-3 flex flex-col divide-y divide-border/60 text-sm">
@@ -103,26 +239,8 @@ export function HisobotTab() {
             </p>
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card className="p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-muted">
-                <TrendingUp size={14} className="text-accent" /> Tushum
-              </div>
-              <p className="mt-1 text-xl font-bold">{formatSom(data.revenue)}</p>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-muted">
-                <Package size={14} className="text-warning" /> Tannarx
-              </div>
-              <p className="mt-1 text-xl font-bold">{formatSom(data.cogs)}</p>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-muted">
-                <TrendingDown size={14} className="text-danger" /> Xarajat
-              </div>
-              <p className="mt-1 text-xl font-bold">{formatSom(data.expense)}</p>
-            </Card>
-          </div>
+          <ExpensesListSection period={period} />
+          <SellerSalesSection period={period} />
 
           {data.paymentBreakdown.length > 0 && (
             <Card className="p-4">
@@ -146,67 +264,6 @@ export function HisobotTab() {
             </Card>
           )}
 
-          {data.dailyBreakdown.length > 0 && (
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold">Tushum vs Xarajat</h3>
-              <div className="mt-3 flex h-32 items-end gap-1 overflow-x-auto">
-                {data.dailyBreakdown.map((d) => (
-                  <div key={d.date} className="flex flex-1 min-w-[6px] flex-col items-center justify-end gap-0.5">
-                    <div
-                      className="w-full rounded-t bg-accent"
-                      style={{ height: `${Math.max(2, (d.revenue / maxDaily) * 100)}%` }}
-                      title={`${d.date}: +${formatSom(d.revenue)}`}
-                    />
-                    {d.expense > 0 && (
-                      <div
-                        className="w-full rounded-b bg-danger"
-                        style={{ height: `${Math.max(2, (d.expense / maxDaily) * 60)}%` }}
-                        title={`${d.date}: -${formatSom(d.expense)}`}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Kunlik hisobot</h3>
-              <Button size="sm" variant="secondary" onClick={print}>
-                <Printer size={14} /> Chop etish
-              </Button>
-            </div>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[480px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase text-muted">
-                    <th className="py-2 pr-3 font-medium">Sana</th>
-                    <th className="py-2 pr-3 font-medium">Tushum</th>
-                    <th className="py-2 pr-3 font-medium">Xarajat</th>
-                    <th className="py-2 pr-3 font-medium">Sof foyda</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.dailyBreakdown.map((d) => (
-                    <tr key={d.date} className="border-b border-border/60 last:border-0">
-                      <td className="py-2 pr-3">{d.date}</td>
-                      <td className="py-2 pr-3 text-accent">{formatSom(d.revenue)}</td>
-                      <td className="py-2 pr-3 text-danger">{formatSom(d.expense)}</td>
-                      <td className="py-2 pr-3 font-semibold">{formatSom(d.netProfit)}</td>
-                    </tr>
-                  ))}
-                  {data.dailyBreakdown.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-muted">
-                        Ma&apos;lumot yo&apos;q
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
         </>
       )}
     </div>

@@ -4,16 +4,13 @@ import { useEffect, useState } from "react";
 import {
   Wallet,
   CreditCard,
-  Landmark,
   Plus,
   Loader2,
   ArrowDownLeft,
   ArrowUpRight,
-  PackageCheck,
   Ban,
-  TrendingUp,
   Banknote,
-  Clock,
+  Pencil,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -31,6 +28,7 @@ type Entry = {
   direction: "IN" | "OUT";
   amount: number;
   method: string;
+  category: string | null;
   note: string | null;
   createdAt: string;
   sale: {
@@ -60,6 +58,7 @@ export function FinanceView() {
   const [balances, setBalances] = useState<Balances | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState("");
 
@@ -95,16 +94,8 @@ export function FinanceView() {
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Kassa qoldiq" value={formatSom(balances?.kassa ?? 0)} icon={Banknote} />
-        <StatCard label="Naqd qoldiq" value={formatSom(balances?.cash ?? 0)} icon={Wallet} />
-        <StatCard label="Karta qoldiq" value={formatSom(balances?.card ?? 0)} icon={CreditCard} />
-        <StatCard label="Nasiyadagi summa" value={formatSom(balances?.creditOutstanding ?? 0)} icon={Landmark} />
-        <StatCard
-          label="Kutilayotgan to'lovlar"
-          value={formatSom(balances?.pendingSettlements ?? 0)}
-          icon={Clock}
-        />
-        <StatCard label="Chiqarilgan" value={formatSom(balances?.expenses ?? 0)} icon={PackageCheck} />
-        <StatCard label="Daromad" value={formatSom(balances?.profit ?? 0)} icon={TrendingUp} />
+        <StatCard label="Naqd summa" value={formatSom(balances?.cash ?? 0)} icon={Wallet} />
+        <StatCard label="Kartadagi summa" value={formatSom(balances?.card ?? 0)} icon={CreditCard} />
       </div>
 
       <Card className="p-4">
@@ -205,6 +196,15 @@ export function FinanceView() {
                         Bekor qilish
                       </button>
                     ))}
+                  {!e.sale && (
+                    <button
+                      onClick={() => setEditingEntry(e)}
+                      className="flex items-center gap-1 whitespace-nowrap text-xs text-muted hover:text-accent"
+                      title="Tahrirlash"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -214,6 +214,12 @@ export function FinanceView() {
       </Card>
 
       <LedgerFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={load} />
+      <LedgerFormModal
+        open={!!editingEntry}
+        onClose={() => setEditingEntry(null)}
+        onSaved={load}
+        entry={editingEntry}
+      />
     </div>
   );
 }
@@ -224,12 +230,14 @@ export function LedgerFormModal({
   onSaved,
   defaultDirection = "OUT",
   lockDirection = false,
+  entry = null,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   defaultDirection?: "IN" | "OUT";
   lockDirection?: boolean;
+  entry?: Entry | null;
 }) {
   const [direction, setDirection] = useState<"IN" | "OUT">(defaultDirection);
   const [method, setMethod] = useState<"CASH" | "CARD">("CASH");
@@ -244,17 +252,17 @@ export function LedgerFormModal({
 
   useEffect(() => {
     if (open) {
-      setDirection(defaultDirection);
-      setMethod("CASH");
-      setAmount("");
-      setCategory("");
+      setDirection(entry?.direction ?? defaultDirection);
+      setMethod(entry?.method === "CARD" ? "CARD" : "CASH");
+      setAmount(entry ? String(entry.amount) : "");
+      setCategory(entry?.category ?? "");
       setAddingCategory(false);
       setNewCategory("");
-      setNote("");
+      setNote(entry?.note ?? "");
       setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultDirection]);
+  }, [open, defaultDirection, entry]);
 
   useEffect(() => {
     if (!open) return;
@@ -283,8 +291,8 @@ export function LedgerFormModal({
     }
     setSaving(true);
     setError("");
-    const res = await fetch("/api/ledger", {
-      method: "POST",
+    const res = await fetch(entry ? `/api/ledger/${entry.id}` : "/api/ledger", {
+      method: entry ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ direction, method, amount, category, note }),
     });
@@ -299,7 +307,7 @@ export function LedgerFormModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Kirim / Chiqim qo'shish">
+    <Modal open={open} onClose={onClose} title={entry ? "Kirim / Chiqimni tahrirlash" : "Kirim / Chiqim qo'shish"}>
       <div className="flex flex-col gap-3">
         {!lockDirection && (
           <div className="grid grid-cols-2 gap-2">

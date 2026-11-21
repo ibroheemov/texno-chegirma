@@ -36,7 +36,7 @@ type CartLine = {
   qty: number;
 };
 
-type StatusFilter = "all" | "available" | "low" | "out";
+type StatusFilter = "all" | "available" | "low" | "out" | "discount";
 type PaymentMethod = "CASH" | "CARD" | "CREDIT" | "MIXED";
 
 type LastSale = ReceiptSale;
@@ -69,7 +69,7 @@ export function PosView({
   currentUserName?: string;
   enableMixedPayment?: boolean;
   customPaymentMethods?: string[];
-  deferredPaymentMethods?: Record<string, number>;
+  deferredPaymentMethods?: Record<string, boolean>;
   receipt?: ReceiptSettings;
 }) {
   const router = useRouter();
@@ -99,6 +99,8 @@ export function PosView({
   const [mixedCustomAmounts, setMixedCustomAmounts] = useState<Record<string, number>>({});
   const [mixedModalOpen, setMixedModalOpen] = useState(false);
   const [standaloneCustomMethod, setStandaloneCustomMethod] = useState<string | null>(null);
+  const [settlementDate, setSettlementDate] = useState("");
+  const [settlementNote, setSettlementNote] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -122,6 +124,11 @@ export function PosView({
     }, 250);
     return () => clearTimeout(t);
   }, [query, status, categoryId]);
+
+  const sortedProducts = useMemo(
+    () => [...products].sort((a, b) => (a.onSale === b.onSale ? 0 : a.onSale ? -1 : 1)),
+    [products]
+  );
 
   function addToCart(product: ProductWithCategory) {
     if (product.stock <= 0) return;
@@ -187,6 +194,11 @@ export function PosView({
   );
   const mixedEntered = mixedCash + mixedCard + mixedCredit + mixedCustomTotal;
 
+  const hasDeferredSelection = standaloneCustomMethod
+    ? standaloneCustomMethod in deferredPaymentMethods
+    : method === "MIXED" &&
+      customPaymentMethods.some((m) => m in deferredPaymentMethods && (mixedCustomAmounts[m] ?? 0) > 0);
+
   const lightboxImages = lightboxProduct ? productImages(lightboxProduct) : [];
 
   const selectedCustomer = useMemo(
@@ -248,6 +260,10 @@ export function PosView({
       setError("Aralash to'lov summalari jami summaga teng bo'lishi kerak");
       return;
     }
+    if (hasDeferredSelection && !settlementDate) {
+      setError("Pul kelish sanasini tanlang");
+      return;
+    }
 
     const cashAmount = standaloneCustomMethod ? 0 : method === "CASH" ? total : method === "MIXED" ? mixedCash : 0;
     const cardAmount = standaloneCustomMethod ? 0 : method === "CARD" ? total : method === "MIXED" ? mixedCard : 0;
@@ -274,6 +290,8 @@ export function PosView({
         needsDelivery,
         deliveryAddress: deliveryAddress.trim(),
         deliveryDate: needsDelivery ? `${deliveryDate}T${deliveryTime}` : undefined,
+        settlementDate: hasDeferredSelection ? settlementDate : undefined,
+        settlementNote: hasDeferredSelection ? settlementNote.trim() : undefined,
       }),
     });
     setSubmitting(false);
@@ -310,6 +328,8 @@ export function PosView({
     setMixedCredit(0);
     setMixedCustomAmounts({});
     setStandaloneCustomMethod(null);
+    setSettlementDate("");
+    setSettlementNote("");
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2000);
     router.refresh();
@@ -347,6 +367,7 @@ export function PosView({
             [
               ["all", "Barchasi"],
               ["available", "Mavjud"],
+              ["discount", "Chegirmada"],
               ["low", "Kam qolgan"],
               ["out", "Tugagan"],
             ] as [StatusFilter, string][]
@@ -399,7 +420,7 @@ export function PosView({
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {products.map((p) => (
+              {sortedProducts.map((p) => (
                 <div
                   key={p.id}
                   className={cn(
@@ -712,11 +733,7 @@ export function PosView({
                     if (entry.method === "MIXED") setMixedModalOpen(true);
                   }
                 }}
-                title={
-                  isDeferred
-                    ? `${label} — to'lov ${deferredPaymentMethods[entry.name]} ish kunida tushadi`
-                    : label
-                }
+                title={isDeferred ? `${label} — to'lov keyinroq tushadi (uchinchi tomon)` : label}
                 className={cn(
                   "flex items-center justify-center gap-1 truncate rounded-lg border border-border py-2 text-xs font-medium text-muted",
                   active && "border-accent bg-accent-soft text-accent"
@@ -728,12 +745,27 @@ export function PosView({
             );
           })}
         </div>
-        {standaloneCustomMethod && standaloneCustomMethod in deferredPaymentMethods && (
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
-            <Clock size={12} />
-            To&apos;lov {deferredPaymentMethods[standaloneCustomMethod]} ish kunida tushadi (Moliya →
-            Kechiktirilgan to&apos;lovlar)
-          </p>
+        {hasDeferredSelection && (
+          <div className="mt-2 flex flex-col gap-2 rounded-lg bg-surface-muted p-3">
+            <p className="flex items-center gap-1.5 text-xs text-muted">
+              <Clock size={12} />
+              Pul uchinchi tomondan keyinroq tushadi (Moliya → Kechiktirilgan to&apos;lovlar)
+            </p>
+            <div className="flex flex-col gap-1 text-xs text-muted">
+              Pul kelish sanasi *
+              <DeliveryDatePicker
+                value={settlementDate}
+                onChange={setSettlementDate}
+                min={new Date().toISOString().slice(0, 10)}
+              />
+            </div>
+            <input
+              value={settlementNote}
+              onChange={(e) => setSettlementNote(e.target.value)}
+              placeholder="Izoh (ixtiyoriy)"
+              className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent"
+            />
+          </div>
         )}
 
         {method === "MIXED" && !standaloneCustomMethod && (
@@ -789,7 +821,8 @@ export function PosView({
             submitting ||
             cart.length === 0 ||
             customerInfoMissing ||
-            (method === "MIXED" && !standaloneCustomMethod && mixedEntered !== total)
+            (method === "MIXED" && !standaloneCustomMethod && mixedEntered !== total) ||
+            (hasDeferredSelection && !settlementDate)
           }
           onClick={checkout}
         >

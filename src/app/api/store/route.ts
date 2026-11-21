@@ -20,6 +20,8 @@ const STRING_FIELDS = [
   "telegramUsername",
   "telegramBotToken",
   "telegramChatId",
+  "fxChannelUsername",
+  "fxKeyword",
 ] as const;
 
 const BOOL_FIELDS = [
@@ -45,6 +47,15 @@ export async function PATCH(req: NextRequest) {
   }
   if (body.usdRate !== undefined) {
     data.usdRate = body.usdRate === null || body.usdRate === "" ? null : Number(body.usdRate);
+  }
+  if (body.fxNumberIndex !== undefined) {
+    data.fxNumberIndex = body.fxNumberIndex === null || body.fxNumberIndex === "" ? null : Number(body.fxNumberIndex);
+  }
+  if (body.locationLat !== undefined) {
+    data.locationLat = body.locationLat === null || body.locationLat === "" ? null : Number(body.locationLat);
+  }
+  if (body.locationLng !== undefined) {
+    data.locationLng = body.locationLng === null || body.locationLng === "" ? null : Number(body.locationLng);
   }
   if (body.customPaymentMethods !== undefined) {
     data.customPaymentMethods = body.customPaymentMethods;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Receipt, Wallet, TrendingUp, Eye } from "lucide-react";
+import { Loader2, Receipt, Wallet, Package, Eye } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { formatSom } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -14,7 +14,7 @@ type Row = { id: string | null; name: string; receipts: number; revenue: number;
 export function SotuvchilarTab() {
   const [period, setPeriod] = useState<Period>("month");
   const [rows, setRows] = useState<Row[]>([]);
-  const [totals, setTotals] = useState({ receipts: 0, revenue: 0, profit: 0 });
+  const [totals, setTotals] = useState({ receipts: 0, revenue: 0, profit: 0, itemsQty: 0 });
   const [loading, setLoading] = useState(true);
   const [detailFor, setDetailFor] = useState<Row | null>(null);
 
@@ -23,7 +23,7 @@ export function SotuvchilarTab() {
     const res = await fetch(`/api/finance/sellers?period=${period}`);
     const data = await res.json();
     setRows(data.rows ?? []);
-    setTotals(data.totals ?? { receipts: 0, revenue: 0, profit: 0 });
+    setTotals(data.totals ?? { receipts: 0, revenue: 0, profit: 0, itemsQty: 0 });
     setLoading(false);
   }
 
@@ -73,9 +73,9 @@ export function SotuvchilarTab() {
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-xs font-semibold text-muted">
-            <TrendingUp size={14} className="text-accent" /> Jami foyda
+            <Package size={14} className="text-accent" /> Sotilgan mahsulotlar
           </div>
-          <p className="mt-1 text-xl font-bold">{formatSom(totals.profit)}</p>
+          <p className="mt-1 text-xl font-bold">{totals.itemsQty}</p>
         </Card>
       </div>
 
@@ -94,7 +94,6 @@ export function SotuvchilarTab() {
                   <th className="py-2 pr-3 font-medium">Cheklar</th>
                   <th className="py-2 pr-3 font-medium">Sotilgan dona</th>
                   <th className="py-2 pr-3 font-medium">Sotuv summasi</th>
-                  <th className="py-2 pr-3 font-medium">Foyda</th>
                   <th className="py-2 pr-3 font-medium"></th>
                 </tr>
               </thead>
@@ -105,7 +104,6 @@ export function SotuvchilarTab() {
                     <td className="py-2.5 pr-3">{r.receipts}</td>
                     <td className="py-2.5 pr-3">{r.itemsQty}</td>
                     <td className="py-2.5 pr-3 font-semibold">{formatSom(r.revenue)}</td>
-                    <td className="py-2.5 pr-3 text-accent">{formatSom(r.profit)}</td>
                     <td className="py-2.5 pr-3 text-right">
                       <button
                         onClick={() => setDetailFor(r)}
@@ -120,7 +118,7 @@ export function SotuvchilarTab() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-muted">
+                    <td colSpan={5} className="py-8 text-center text-muted">
                       Ma&apos;lumot yo&apos;q
                     </td>
                   </tr>

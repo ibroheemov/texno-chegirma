@@ -63,6 +63,13 @@ model Store {
   telegramBotToken    String?
   telegramChatId      String?
   publicUrl           String?
+  fxChannelUsername   String?
+  fxKeyword           String?
+  fxNumberIndex       Int?
+  // Store's physical location — shown to customers via the bot's "📍 Manzilimiz"
+  // reply-keyboard button (sent as a native Telegram location, not just text).
+  locationLat         Float?
+  locationLng         Float?
   customPaymentMethods Json?
   deferredPaymentMethods Json?
   createdAt DateTime @default(now())
@@ -81,6 +88,7 @@ model Store {
   handovers  CashHandover[]
   telegramSessions TelegramSession[]
   salaryPayments SalaryPayment[]
+  layawayOrders LayawayOrder[]
 }
 
 // Per-chat state for the Telegram shopping bot. A bot webhook handles one
@@ -117,6 +125,9 @@ model OnlineOrder {
   items           Json
   total           Int
   paymentMethod   PaymentMethod @default(CASH)
+  // Set only when paymentMethod is CUSTOM via "Muddatli to'lov" — the
+  // installment plan length (3, 6 or 12 months) the customer picked at checkout.
+  installmentMonths Int?
   status          OrderStatus   @default(PENDING)
   source          String        @default("ONLINE")
   saleId          String?       @unique
@@ -176,6 +187,7 @@ model Product {
 
   saleItems SaleItem[]
   receipts  GoodsReceipt[]
+  layawayOrders LayawayOrder[]
 
   @@unique([storeId, sku])
   @@index([storeId, name])
@@ -195,6 +207,7 @@ model Customer {
 
   sales  Sale[]
   debts  CreditLedger[]
+  layawayOrders LayawayOrder[]
 
   @@unique([storeId, telegramChatId])
   @@index([storeId, name])
@@ -242,6 +255,7 @@ model ThirdPartySettlement {
   methodName     String
   amount         Int
   expectedDate   DateTime
+  note           String?
   received       Boolean       @default(false)
   receivedAt     DateTime?
   receivedMethod PaymentMethod?
@@ -339,6 +353,7 @@ model Supplier {
   createdAt DateTime @default(now())
 
   receipts GoodsReceipt[]
+  payments SupplierPayment[]
 
   @@index([storeId, name])
 }
@@ -362,7 +377,92 @@ model GoodsReceipt {
   paidUsd       Float         @default(0)
   createdAt     DateTime      @default(now())
 
+  paymentAllocations SupplierPaymentReceipt[]
+
   @@index([storeId, supplierId])
+}
+
+// A single payment made toward a supplier's debt. Linked to the specific
+// GoodsReceipt rows it paid off (via SupplierPaymentReceipt) so the purchases
+// table can show, per purchase (or per date group), exactly which payments
+// were applied to it.
+model SupplierPayment {
+  id         String        @id @default(cuid())
+  storeId    String
+  supplierId String
+  supplier   Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  amount     Int
+  method     PaymentMethod @default(CASH)
+  paidUsd    Float?
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  receipts SupplierPaymentReceipt[]
+
+  @@index([storeId, supplierId, createdAt])
+}
+
+model SupplierPaymentReceipt {
+  id        String          @id @default(cuid())
+  paymentId String
+  payment   SupplierPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  receiptId String
+  receipt   GoodsReceipt    @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  amount    Int
+
+  @@index([receiptId])
+}
+
+enum LayawayStatus {
+  ACTIVE
+  COMPLETED
+  DELIVERED
+  CANCELED
+}
+
+// "Xaqdorlar": a customer pays toward a product's price in installments,
+// whenever they have money, and only receives the product once it's paid in
+// full. The opposite direction of Nasiya (CreditLedger): there the store gives
+// the product first and collects debt after; here the store collects money
+// first and hands over the product last.
+model LayawayOrder {
+  id          String        @id @default(cuid())
+  storeId     String
+  store       Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  // Optional link to a real warehouse product (its stock is reserved — decremented —
+  // as soon as the order is created, so it can't also be sold at the register).
+  // Left null for a custom/one-off item that isn't tracked in Ombor.
+  productId   String?
+  product     Product?      @relation(fields: [productId], references: [id])
+  productName String
+  qty         Int           @default(1)
+  totalCost   Int
+  totalUsd    Float?
+  paidAmount  Int           @default(0)
+  status      LayawayStatus @default(ACTIVE)
+  note        String?
+  deliveredAt DateTime?
+  canceledAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  payments LayawayPayment[]
+
+  @@index([storeId, status])
+  @@index([storeId, customerId])
+}
+
+model LayawayPayment {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     LayawayOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount    Int
+  method    PaymentMethod @default(CASH)
+  note      String?
+  createdAt DateTime      @default(now())
+
+  @@index([orderId])
 }
 
 model Employee {
@@ -383,6 +483,8 @@ model Employee {
   allowedLat          Float?
   allowedLng          Float?
   allowedRadius       Int?    @default(100)
+  workStartTime       String?
+  workEndTime         String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 

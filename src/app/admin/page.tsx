@@ -66,7 +66,7 @@ export default async function KassaPage() {
         customPaymentMethods={Array.isArray(store?.customPaymentMethods) ? (store.customPaymentMethods as string[]) : []}
         deferredPaymentMethods={
           store?.deferredPaymentMethods && typeof store.deferredPaymentMethods === "object"
-            ? (store.deferredPaymentMethods as Record<string, number>)
+            ? (store.deferredPaymentMethods as Record<string, boolean>)
             : {}
         }
         receipt={receiptSettings}

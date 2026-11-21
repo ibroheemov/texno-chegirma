@@ -310,6 +310,7 @@ export async function getSellerSummary(storeId: string, period: string) {
       receipts: rows.reduce((s, r) => s + r.receipts, 0),
       revenue: rows.reduce((s, r) => s + r.revenue, 0),
       profit: rows.reduce((s, r) => s + r.profit, 0),
+      itemsQty: rows.reduce((s, r) => s + r.itemsQty, 0),
     },
   };
 }
@@ -367,6 +368,7 @@ export async function getSettlements(storeId: string, period: string) {
     methodName: s.methodName,
     amount: s.amount,
     expectedDate: s.expectedDate,
+    note: s.note,
     overdue: s.expectedDate < now,
     createdAt: s.createdAt,
   }));
@@ -376,6 +378,7 @@ export async function getSettlements(storeId: string, period: string) {
     customerName: s.sale.customer?.name ?? null,
     methodName: s.methodName,
     amount: s.amount,
+    note: s.note,
     receivedAt: s.receivedAt,
     receivedMethod: s.receivedMethod,
   }));

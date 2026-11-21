@@ -7,11 +7,12 @@ export async function POST(req: NextRequest) {
   if (!store) return NextResponse.json({ error: "Do'kon topilmadi" }, { status: 404 });
 
   const body = await req.json();
-  const { customerName, customerPhone, customerAddress, paymentMethod, items } = body as {
+  const { customerName, customerPhone, customerAddress, paymentMethod, installmentMonths, items } = body as {
     customerName: string;
     customerPhone: string;
     customerAddress?: string;
-    paymentMethod?: "CASH" | "CARD";
+    paymentMethod?: "CASH" | "CARD" | "CUSTOM";
+    installmentMonths?: number;
     items: { productId: string; name: string; qty: number; price: number }[];
   };
 
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ism, telefon va mahsulotlarni kiriting" }, { status: 400 });
   }
 
+  const months = [3, 6, 12].includes(Number(installmentMonths)) ? Number(installmentMonths) : null;
   const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   const order = await prisma.onlineOrder.create({
@@ -27,7 +29,8 @@ export async function POST(req: NextRequest) {
       customerName,
       customerPhone,
       customerAddress: customerAddress || null,
-      paymentMethod: paymentMethod === "CARD" ? "CARD" : "CASH",
+      paymentMethod: months ? "CUSTOM" : paymentMethod === "CARD" ? "CARD" : "CASH",
+      installmentMonths: months,
       items,
       total,
     },
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   if (store.notifyNewOrders) {
     notifyNewOrder(
-      { storeName: store.name, customerName, customerPhone, total, items },
+      { storeName: store.name, customerName, customerPhone, total, items, installmentMonths: months },
       { token: store.telegramBotToken, chatId: store.telegramChatId }
     ).catch(() => {});
   }

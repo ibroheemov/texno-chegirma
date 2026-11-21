@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Product } from "@prisma/client";
-import { Wallet, ArrowDownLeft, ArrowUpRight, Landmark, FileBarChart, Truck, Users, Clock } from "lucide-react";
+import { Wallet, ArrowDownLeft, ArrowUpRight, Landmark, FileBarChart, Truck, Users, Clock, PackagePlus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FinanceView } from "./FinanceView";
 import { KirimTab } from "./KirimTab";
@@ -11,27 +11,42 @@ import { HisobotTab } from "./HisobotTab";
 import { TovarBeruvchiTab } from "./TovarBeruvchiTab";
 import { SotuvchilarTab } from "./SotuvchilarTab";
 import { SettlementsTab } from "./SettlementsTab";
+import { XaqdorlarTab } from "./XaqdorlarTab";
 import { CreditView } from "@/components/credit/CreditView";
 
-type Tab = "kassa" | "kirim" | "chiqim" | "nasiya" | "hisobot" | "tovar" | "sotuvchilar" | "settlements";
+type Tab =
+  | "kassa"
+  | "kirim"
+  | "chiqim"
+  | "nasiya"
+  | "hisobot"
+  | "tovar"
+  | "sotuvchilar"
+  | "settlements"
+  | "xaqdorlar";
 
 const TABS: { key: Tab; label: string; icon: typeof Wallet }[] = [
   { key: "kassa", label: "Kassa", icon: Wallet },
   { key: "kirim", label: "Kirim", icon: ArrowDownLeft },
   { key: "chiqim", label: "Chiqim", icon: ArrowUpRight },
   { key: "nasiya", label: "Nasiya", icon: Landmark },
+  { key: "xaqdorlar", label: "Xaqdorlar", icon: PackagePlus },
   { key: "hisobot", label: "Hisobot", icon: FileBarChart },
   { key: "tovar", label: "Tovar beruvchi", icon: Truck },
   { key: "sotuvchilar", label: "Sotuvchilar", icon: Users },
   { key: "settlements", label: "Kechiktirilgan to'lovlar", icon: Clock },
 ];
 
+export type CustomerOption = { id: string; name: string; phone: string | null };
+
 export function MoliyaTabs({
   products,
+  customers,
   usdRate,
   showDebtInUsdOnly,
 }: {
   products: Product[];
+  customers: CustomerOption[];
   usdRate?: number | null;
   showDebtInUsdOnly?: boolean;
 }) {
@@ -59,6 +74,7 @@ export function MoliyaTabs({
       {tab === "kirim" && <KirimTab />}
       {tab === "chiqim" && <ChiqimTab />}
       {tab === "nasiya" && <CreditView />}
+      {tab === "xaqdorlar" && <XaqdorlarTab customers={customers} products={products} />}
       {tab === "hisobot" && <HisobotTab />}
       {tab === "tovar" && (
         <TovarBeruvchiTab products={products} usdRate={usdRate} showDebtInUsdOnly={showDebtInUsdOnly} />

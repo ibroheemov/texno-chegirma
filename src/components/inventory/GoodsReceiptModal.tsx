@@ -55,10 +55,16 @@ export function GoodsReceiptModal({
       fetch("/api/usd-rate")
         .then((res) => res.json())
         .then((d) => {
-          const info = d.rate as { rate: number; source: "cbu" | "manual"; date?: string } | null;
+          const info = d.rate as { rate: number; source: "telegram" | "cbu" | "manual"; date?: string } | null;
           if (!info) return;
           setUsdRateInput((prev) => (prev === initialRate ? String(info.rate) : prev));
-          setUsdRateHint(info.source === "cbu" ? `CBU kursi (${info.date})` : "Qo'lda kiritilgan kurs");
+          setUsdRateHint(
+            info.source === "cbu"
+              ? `CBU kursi (${info.date})`
+              : info.source === "telegram"
+                ? "Bozor kursi (Telegram)"
+                : "Qo'lda kiritilgan kurs"
+          );
         })
         .catch(() => {});
       setPaymentMethod("CASH");

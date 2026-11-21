@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getUsdRate } from "@/lib/usdRate";
 
-// Live CBU USD rate (or the store's manual rate if CBU is unreachable).
+// Live USD rate (Telegram channel if configured, else CBU, else the store's
+// manual rate as a last resort).
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
-  const store = await prisma.store.findUnique({ where: { id: session.storeId } });
-  const info = await getUsdRate(store?.usdRate);
+  const info = await getUsdRate(session.storeId);
   return NextResponse.json({ rate: info });
 }

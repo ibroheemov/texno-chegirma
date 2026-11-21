@@ -13,6 +13,7 @@ import {
   Upload,
   FileSpreadsheet,
   Send,
+  MapPin,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
@@ -38,7 +39,12 @@ type StoreData = {
   telegramBotToken: string | null;
   telegramChatId: string | null;
   customPaymentMethods: string[] | null;
-  deferredPaymentMethods: Record<string, number> | null;
+  deferredPaymentMethods: Record<string, boolean> | null;
+  fxChannelUsername: string | null;
+  fxKeyword: string | null;
+  fxNumberIndex: number | null;
+  locationLat: number | null;
+  locationLng: number | null;
 };
 
 async function patchStore(data: Record<string, unknown>) {
@@ -69,16 +75,41 @@ export function StoreInfoForm({ store }: { store: StoreData }) {
   const [currency, setCurrency] = useState(store.currency);
   const [phone, setPhone] = useState(store.phone ?? "");
   const [address, setAddress] = useState(store.address ?? "");
+  const [locationLat, setLocationLat] = useState(store.locationLat);
+  const [locationLng, setLocationLng] = useState(store.locationLng);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+
+  function detectLocation() {
+    if (!navigator.geolocation) {
+      setLocationError("Qurilma joylashuvni aniqlay olmaydi");
+      return;
+    }
+    setLocating(true);
+    setLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocationLat(pos.coords.latitude);
+        setLocationLng(pos.coords.longitude);
+        setLocating(false);
+      },
+      () => {
+        setLocationError("Joylashuvga ruxsat berilmadi yoki aniqlab bo'lmadi");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   async function save() {
     setSaving(true);
     setError("");
     setDone(false);
     try {
-      await patchStore({ name, currency, phone, address });
+      await patchStore({ name, currency, phone, address, locationLat, locationLng });
       setDone(true);
       router.refresh();
       setTimeout(() => setDone(false), 2000);
@@ -103,6 +134,61 @@ export function StoreInfoForm({ store }: { store: StoreData }) {
         <Field label="Manzil">
           <Input value={address} onChange={(e) => setAddress(e.target.value)} />
         </Field>
+        <div>
+          <p className="text-xs font-medium text-muted">Do&apos;kon joylashuvi (xaritada)</p>
+          <p className="mt-0.5 text-xs text-muted">
+            Bot &quot;📍 Manzilimiz&quot; tugmasi bosilganda mijozga shu joylashuv yuboriladi.
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={detectLocation}
+              disabled={locating}
+              className="flex items-center gap-1.5 text-xs font-medium text-accent disabled:opacity-60"
+            >
+              {locating ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
+              {locating ? "Aniqlanmoqda..." : "Joriy joylashuvni olish"}
+            </button>
+            {locationLat != null && locationLng != null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLocationLat(null);
+                  setLocationLng(null);
+                }}
+                className="text-xs font-medium text-danger"
+              >
+                O&apos;chirish
+              </button>
+            )}
+          </div>
+          {locationError && <p className="mt-1 text-xs text-danger">{locationError}</p>}
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Input
+              type="number"
+              value={locationLat ?? ""}
+              onChange={(e) => setLocationLat(e.target.value === "" ? null : Number(e.target.value))}
+              placeholder="Kenglik (lat)"
+            />
+            <Input
+              type="number"
+              value={locationLng ?? ""}
+              onChange={(e) => setLocationLng(e.target.value === "" ? null : Number(e.target.value))}
+              placeholder="Uzunlik (lng)"
+            />
+          </div>
+          {locationLat != null && locationLng != null && (
+            <div className="mt-2 overflow-hidden rounded-lg border border-border">
+              <iframe
+                key={`${locationLat},${locationLng}`}
+                title="Do'kon joylashuvi"
+                className="h-40 w-full"
+                loading="lazy"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${locationLng - 0.01}%2C${locationLat - 0.01}%2C${locationLng + 0.01}%2C${locationLat + 0.01}&layer=mapnik&marker=${locationLat}%2C${locationLng}`}
+              />
+            </div>
+          )}
+        </div>
         <Field label="Valyuta belgisi">
           <Input value={currency} onChange={(e) => setCurrency(e.target.value)} />
         </Field>
@@ -214,7 +300,7 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
   const router = useRouter();
   const [enableMixedPayment, setEnableMixedPayment] = useState(store.enableMixedPayment);
   const [methods, setMethods] = useState<string[]>(store.customPaymentMethods ?? []);
-  const [deferred, setDeferred] = useState<Record<string, number>>(store.deferredPaymentMethods ?? {});
+  const [deferred, setDeferred] = useState<Record<string, boolean>>(store.deferredPaymentMethods ?? {});
   const [newMethod, setNewMethod] = useState("");
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -222,7 +308,7 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
   async function persist(next: {
     enableMixedPayment?: boolean;
     customPaymentMethods?: string[];
-    deferredPaymentMethods?: Record<string, number>;
+    deferredPaymentMethods?: Record<string, boolean>;
   }) {
     setSaving(true);
     await patchStore(next).catch(() => {});
@@ -256,14 +342,8 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
 
   function toggleDeferred(name: string, on: boolean) {
     const next = { ...deferred };
-    if (on) next[name] = next[name] ?? 7;
+    if (on) next[name] = true;
     else delete next[name];
-    setDeferred(next);
-    persist({ deferredPaymentMethods: next });
-  }
-
-  function setDeferredDays(name: string, days: number) {
-    const next = { ...deferred, [name]: days };
     setDeferred(next);
     persist({ deferredPaymentMethods: next });
   }
@@ -298,18 +378,6 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
                 />
                 Kechiktirilgan (uchinchi tomon)
               </label>
-              {m in deferred && (
-                <div className="flex items-center gap-1.5 text-xs text-muted">
-                  <input
-                    type="number"
-                    min={1}
-                    value={deferred[m]}
-                    onChange={(e) => setDeferredDays(m, Math.max(1, Number(e.target.value) || 1))}
-                    className="w-14 rounded-md border border-border bg-background px-1.5 py-1 text-xs outline-none focus:border-accent"
-                  />
-                  ish kunida to&apos;lanadi
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -328,8 +396,9 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
       <p className="mt-1 text-xs text-muted">
         Qo&apos;shimcha usullar hisobga olish uchun ro&apos;yxatda saqlanadi; kassadagi to&apos;lov tugmalari
         Naqd/Karta/Nasiya/Aralash bo&apos;lib qoladi. &quot;Kechiktirilgan&quot; belgilangan usul — mahsulot
-        uchinchi tomon kompaniyasi orqali sotilgan va pul do&apos;konga darhol emas, belgilangan ish kuni ichida
-        tushadi (Moliya → Kechiktirilgan to&apos;lovlar bo&apos;limida kuzatiladi).
+        uchinchi tomon kompaniyasi orqali sotilgan va pul do&apos;konga darhol tushmaydi; kassada shu usul
+        tanlanganda pul kelish sanasi va izoh kiritiladi (Moliya → Kechiktirilgan to&apos;lovlar
+        bo&apos;limida kuzatiladi).
       </p>
 
       <div className="mt-4 border-t border-dashed border-border pt-4">
@@ -350,12 +419,29 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
   );
 }
 
+// The keyword to search for in the channel's latest post, and which
+// numbered "real" number (4+ digits, ignoring small +N/-N change markers)
+// after it is the rate. For @namangankurs's format this lands on the sell
+// figure (the 2nd big number after the USD heading), not the "100$ = ..."
+// summary line further down, which is the cost of 100 dollars, not one.
+const DEFAULT_FX_KEYWORD = "АҚШ Доллари";
+const DEFAULT_FX_NUMBER_INDEX = 2;
+
 export function UsdRateCard({ store }: { store: StoreData }) {
   const router = useRouter();
   const [rate, setRate] = useState(store.usdRate != null ? String(store.usdRate) : "");
   const [usdOnly, setUsdOnly] = useState(store.showDebtInUsdOnly);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+
+  const [fxChannelUsername, setFxChannelUsername] = useState(store.fxChannelUsername ?? "");
+  const [fxKeyword, setFxKeyword] = useState(store.fxKeyword ?? DEFAULT_FX_KEYWORD);
+  const [fxNumberIndex, setFxNumberIndex] = useState(
+    store.fxNumberIndex != null ? String(store.fxNumberIndex) : String(DEFAULT_FX_NUMBER_INDEX)
+  );
+  const [channelSaving, setChannelSaving] = useState(false);
+  const [channelResult, setChannelResult] = useState("");
+  const [channelError, setChannelError] = useState("");
 
   async function save() {
     setSaving(true);
@@ -364,6 +450,38 @@ export function UsdRateCard({ store }: { store: StoreData }) {
     setDone(true);
     router.refresh();
     setTimeout(() => setDone(false), 1500);
+  }
+
+  async function saveChannel() {
+    setChannelSaving(true);
+    setChannelError("");
+    setChannelResult("");
+    const username = fxChannelUsername.trim().replace(/^@/, "");
+    const keyword = fxKeyword.trim();
+    const index = Number(fxNumberIndex) || DEFAULT_FX_NUMBER_INDEX;
+    await patchStore({
+      fxChannelUsername: username || null,
+      fxKeyword: username ? keyword || DEFAULT_FX_KEYWORD : null,
+      fxNumberIndex: username ? index : null,
+    }).catch(() => {});
+    setFxChannelUsername(username);
+    router.refresh();
+
+    if (!username) {
+      setChannelSaving(false);
+      setChannelResult("Kanal o'chirildi — endi CBU kursi ishlatiladi.");
+      return;
+    }
+    const res = await fetch("/api/usd-rate");
+    const data = await res.json().catch(() => ({}));
+    setChannelSaving(false);
+    if (data?.rate?.source === "telegram") {
+      setChannelResult(`✓ Kanaldan olindi: 1$ = ${Number(data.rate.rate).toLocaleString("en-US")} so'm`);
+    } else {
+      setChannelError(
+        "Kanaldan kurs topilmadi — hozircha CBU kursiga qaytildi. Username va qidiruv so'zini tekshiring."
+      );
+    }
   }
 
   return (
@@ -391,6 +509,51 @@ export function UsdRateCard({ store }: { store: StoreData }) {
           label="Qarzlarni faqat dollarda ko'rsatish"
           description="Yoqilganda Moliya → Tovar beruvchi sahifasida qarz so'mlarda emas, faqat dollarda ($) ko'rinadi."
         />
+      </div>
+
+      <div className="mt-4 border-t border-dashed border-border pt-4">
+        <h3 className="text-sm font-semibold">Valyuta kursi manbai (bozor kursi)</h3>
+        <p className="mt-1 text-xs text-muted">
+          Belgilansa, kurs CBU o&apos;rniga shu Telegram kanalining so&apos;nggi postidan olinadi. Kanal
+          bo&apos;sh bo&apos;lsa yoki post mos kelmasa, CBU kursiga qaytiladi.
+        </p>
+        <div className="mt-3 flex flex-col gap-3 sm:max-w-md">
+          <Field label="Telegram kanal username">
+            <Input
+              value={fxChannelUsername}
+              onChange={(e) => setFxChannelUsername(e.target.value)}
+              placeholder="masalan: namangankurs"
+            />
+          </Field>
+          <Field label="Qidiruv so'zi (postda qaysi qator)">
+            <Input
+              value={fxKeyword}
+              onChange={(e) => setFxKeyword(e.target.value)}
+              placeholder={DEFAULT_FX_KEYWORD}
+            />
+          </Field>
+          <Field label="Nechanchi raqam (shu so'zdan keyin)">
+            <Input
+              type="number"
+              min={1}
+              value={fxNumberIndex}
+              onChange={(e) => setFxNumberIndex(e.target.value)}
+              placeholder={String(DEFAULT_FX_NUMBER_INDEX)}
+              className="sm:max-w-[140px]"
+            />
+          </Field>
+          <p className="text-xs text-muted">
+            Masalan: postda &quot;АҚШ Доллари ... 11&apos;970 ... 12&apos;010&quot; bo&apos;lsa, 2-raqam —
+            12&apos;010 (sotish kursi). Kichik &quot;+10&quot;/&quot;-5&quot; kabi o&apos;zgarish
+            ko&apos;rsatkichlari hisobga olinmaydi.
+          </p>
+          <Button size="sm" variant="secondary" onClick={saveChannel} disabled={channelSaving} className="self-start">
+            {channelSaving && <Loader2 size={14} className="animate-spin" />}
+            Saqlash va tekshirish
+          </Button>
+          {channelResult && <p className="text-xs text-accent">{channelResult}</p>}
+          {channelError && <p className="text-xs text-danger">{channelError}</p>}
+        </div>
       </div>
       {done && <SavedTick show={done} />}
     </Card>

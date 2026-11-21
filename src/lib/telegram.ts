@@ -6,6 +6,7 @@ type OrderNotification = {
   customerPhone: string;
   total: number;
   items: { name: string; qty: number; price: number }[];
+  installmentMonths?: number | null;
 };
 
 // Sends a Telegram message when a new online order comes in. No-op unless a
@@ -27,7 +28,10 @@ export async function notifyNewOrder(
     ...order.items.map((i) => `• ${i.name} × ${i.qty} = ${formatSom(i.price * i.qty)}`),
     "",
     `*Jami: ${formatSom(order.total)}*`,
-  ];
+    order.installmentMonths
+      ? `💳 Muddatli to'lov: ${order.installmentMonths} oy (${formatSom(Math.ceil(order.total / order.installmentMonths))}/oy)`
+      : null,
+  ].filter((l): l is string => l !== null);
 
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
@@ -103,6 +107,13 @@ export function editMessage(
 
 export function answerCallbackQuery(token: string, callbackQueryId: string, text?: string) {
   return api(token, "answerCallbackQuery", { callback_query_id: callbackQueryId, text });
+}
+
+// Sends a native Telegram location bubble (the chat shows an inline map, not
+// just text) — used for the bot's "📍 Manzilimiz" button to share the store's
+// own location with the customer.
+export function sendLocation(token: string, chatId: string | number, lat: number, lng: number) {
+  return api(token, "sendLocation", { chat_id: chatId, latitude: lat, longitude: lng });
 }
 
 export async function setTelegramWebhook(token: string, url: string) {

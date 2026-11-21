@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
   if (status === "low") products = products.filter((p) => p.stock > 0 && p.stock <= p.lowStockAt).slice(0, take);
   if (status === "out") products = products.filter((p) => p.stock <= 0).slice(0, take);
   if (status === "available") products = products.filter((p) => p.stock > 0).slice(0, take);
+  if (status === "discount") products = products.filter((p) => p.onSale).slice(0, take);
 
   const total = await prisma.product.count({ where });
 

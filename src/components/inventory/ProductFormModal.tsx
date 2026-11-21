@@ -113,10 +113,16 @@ export function ProductFormModal({
     fetch("/api/usd-rate")
       .then((r) => r.json())
       .then((d) => {
-        const info = d.rate as { rate: number; source: "cbu" | "manual"; date?: string } | null;
+        const info = d.rate as { rate: number; source: "telegram" | "cbu" | "manual"; date?: string } | null;
         if (!info) return;
         setUsdRateInput((prev) => prev || String(info.rate));
-        setUsdRateHint(info.source === "cbu" ? `CBU kursi (${info.date})` : "Qo'lda kiritilgan kurs");
+        setUsdRateHint(
+          info.source === "cbu"
+            ? `CBU kursi (${info.date})`
+            : info.source === "telegram"
+              ? "Bozor kursi (Telegram)"
+              : "Qo'lda kiritilgan kurs"
+        );
       })
       .catch(() => {});
   }, [open]);
@@ -128,7 +134,7 @@ export function ProductFormModal({
   }
 
   function generateCode() {
-    return `AUTO-${Date.now().toString(36).toUpperCase()}`;
+    return String(Date.now());
   }
 
   function pickImages(files: FileList) {
@@ -263,7 +269,12 @@ export function ProductFormModal({
           <Field label="Shtrix kod">
             <div className="flex items-center gap-2">
               <Keyboard size={16} className="text-muted" />
-              <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="ISBN / Shtrix kod..." />
+              <Input
+                value={sku}
+                onChange={(e) => setSku(e.target.value.replace(/\D/g, ""))}
+                inputMode="numeric"
+                placeholder="Masalan: 010102000226"
+              />
             </div>
           </Field>
 

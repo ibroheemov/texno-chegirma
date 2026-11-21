@@ -37,6 +37,8 @@ export function EmployeeFormModal({
   const [isCourier, setIsCourier] = useState(false);
   const [salaryType, setSalaryType] = useState<"monthly" | "daily">("monthly");
   const [salary, setSalary] = useState("");
+  const [workStartTime, setWorkStartTime] = useState("");
+  const [workEndTime, setWorkEndTime] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null);
   const [locationName, setLocationName] = useState("");
@@ -58,6 +60,8 @@ export function EmployeeFormModal({
       setIsCourier(employee?.isCourier ?? defaultIsCourier);
       setSalaryType(employee?.salaryType === "DAILY" ? "daily" : "monthly");
       setSalary(employee ? String(employee.salary) : "");
+      setWorkStartTime(employee?.workStartTime ?? "");
+      setWorkEndTime(employee?.workEndTime ?? "");
       setPhotoUrl(employee?.photoUrl ?? "");
       setFaceDescriptor(employee?.faceDescriptor ? safeParseDescriptor(employee.faceDescriptor) : null);
       setLocationName(employee?.allowedLocationName ?? "");
@@ -118,6 +122,8 @@ export function EmployeeFormModal({
         isCourier,
         salary,
         salaryType: salaryType === "daily" ? "DAILY" : "MONTHLY",
+        workStartTime: workStartTime || null,
+        workEndTime: workEndTime || null,
         photoUrl,
         faceDescriptor: faceDescriptor ? JSON.stringify(faceDescriptor) : null,
         allowedLocationName: locationName,
@@ -198,6 +204,19 @@ export function EmployeeFormModal({
             placeholder={salaryType === "daily" ? "Masalan: 150000 so'm/kun" : "Masalan: 3000000 so'm/oy"}
           />
         </Field>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Ish boshlanishi (ixtiyoriy)">
+            <Input type="time" value={workStartTime} onChange={(e) => setWorkStartTime(e.target.value)} />
+          </Field>
+          <Field label="Ish tugashi (ixtiyoriy)">
+            <Input type="time" value={workEndTime} onChange={(e) => setWorkEndTime(e.target.value)} />
+          </Field>
+        </div>
+        <p className="-mt-2 text-xs text-muted">
+          Belgilansa, oylik hisoblashda xodim qachon kelib-ketganini shu jadvalga solishtirib, kech kelgan yoki
+          erta ketgan vaqt uchun kunlik stavka mutanosib ravishda kamaytiriladi.
+        </p>
 
         <PhotoCaptureField
           value={photoUrl}

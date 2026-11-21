@@ -1,8 +1,9 @@
 import { prisma } from "./prisma";
-import { formatSom } from "./format";
+import { formatSom, formatDate } from "./format";
 import {
   notifyNewOrder,
   sendMessage,
+  sendLocation,
   editMessage,
   answerCallbackQuery,
   type InlineKeyboard,
@@ -44,15 +45,20 @@ async function activeProducts(storeId: string) {
 }
 
 const BTN_OPEN_STORE = "🛍 Do'konni ochish";
-const BTN_PRODUCTS = "📦 Mahsulotlar";
+const BTN_DISCOUNTS = "🏷 Aksiyadagi tovarlar";
+const BTN_INFO = "ℹ️ Ma'lumotlar";
+const BTN_MY_ORDERS = "📋 Buyurtmalarim";
 const BTN_CART = "🛒 Savatcha";
+const BTN_LOCATION = "📍 Manzilimiz";
 
 // The bot's main menu is a persistent keyboard under the chat input; the
 // "Do'konni ochish" button opens the Mini App storefront.
 function mainKeyboard(store: Store): ReplyKeyboard {
   return [
     ...(store.publicUrl ? [[{ text: BTN_OPEN_STORE, web_app: { url: `${store.publicUrl}/do-kon` } }]] : []),
-    [{ text: BTN_PRODUCTS }, { text: BTN_CART }],
+    [{ text: BTN_DISCOUNTS }, { text: BTN_INFO }],
+    [{ text: BTN_MY_ORDERS }, { text: BTN_CART }],
+    ...(store.locationLat != null && store.locationLng != null ? [[{ text: BTN_LOCATION }]] : []),
   ];
 }
 
@@ -68,10 +74,11 @@ async function showProducts(
   store: Store,
   chatId: string,
   messageId: number | undefined,
-  opts: { categoryId?: string | null; search?: string }
+  opts: { categoryId?: string | null; search?: string; onSaleOnly?: boolean }
 ) {
   const all = await activeProducts(store.id);
   let list = all;
+  if (opts.onSaleOnly) list = list.filter((p) => p.onSale && p.salePrice != null);
   if (opts.categoryId) list = list.filter((p) => p.categoryId === opts.categoryId);
   if (opts.search) {
     const q = opts.search.toLowerCase();
@@ -80,7 +87,7 @@ async function showProducts(
   const shown = list.slice(0, MAX_LIST);
 
   if (shown.length === 0) {
-    const text = "Hech narsa topilmadi.";
+    const text = opts.onSaleOnly ? "Hozircha aksiyadagi mahsulotlar yo'q." : "Hech narsa topilmadi.";
     if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text);
     else await sendMessage(store.telegramBotToken!, chatId, text);
     return;
@@ -88,12 +95,21 @@ async function showProducts(
 
   const keyboard: InlineKeyboard = [
     ...shown.map((p) => [
-      { text: `${p.name} — ${formatSom(p.price)}`, callback_data: `prod:${p.id}` },
+      {
+        text:
+          p.onSale && p.salePrice != null
+            ? `${p.name} — ${formatSom(p.salePrice)} (avval ${formatSom(p.price)})`
+            : `${p.name} — ${formatSom(p.price)}`,
+        callback_data: `prod:${p.id}`,
+      },
     ]),
     [{ text: BTN_CART, callback_data: "cart:view" }],
   ];
   const more = list.length > MAX_LIST ? `\n\n${list.length - MAX_LIST} ta yana bor — aniqroq yozing.` : "";
-  const text = `Mahsulotni tanlang (qo'shish uchun bosing):${more}`;
+  const heading = opts.onSaleOnly
+    ? "🏷 Aksiyadagi mahsulotlar (qo'shish uchun bosing):"
+    : "Mahsulotni tanlang (qo'shish uchun bosing):";
+  const text = `${heading}${more}`;
   if (messageId) await editMessage(store.telegramBotToken!, chatId, messageId, text, keyboard);
   else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
 }
@@ -137,10 +153,53 @@ async function showCart(
   else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
 }
 
+async function showStoreInfo(store: Store, chatId: string) {
+  const lines = [`🏪 ${store.name}`, ""];
+  if (store.phone) lines.push(`📞 Telefon: ${store.phone}`);
+  if (store.address) lines.push(`📍 Manzil: ${store.address}`);
+  if (store.telegramUsername) lines.push(`✈️ Telegram: ${store.telegramUsername}`);
+  if (lines.length === 2) lines.push("Ma'lumot hali kiritilmagan.");
+  await sendMessage(store.telegramBotToken!, chatId, lines.join("\n"));
+}
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  PENDING: "Kutilmoqda",
+  CONFIRMED: "Tasdiqlandi",
+  OUT_FOR_DELIVERY: "Yetkazilmoqda",
+  DELIVERED: "Yetkazildi",
+  CANCELED: "Bekor qilindi",
+  FAILED: "Bajarilmadi",
+};
+
+async function showMyOrders(store: Store, chatId: string, customerPhone: string | null) {
+  const orders = customerPhone
+    ? await prisma.onlineOrder.findMany({
+        where: { storeId: store.id, customerPhone },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      })
+    : [];
+
+  if (orders.length === 0) {
+    await sendMessage(store.telegramBotToken!, chatId, "Sizda hali buyurtmalar yo'q.");
+    return;
+  }
+
+  const lines = ["📋 Buyurtmalaringiz:", ""];
+  for (const o of orders) {
+    const items = Array.isArray(o.items) ? (o.items as { name: string; qty: number }[]) : [];
+    const itemsLabel = items.map((i) => `${i.name} × ${i.qty}`).join(", ");
+    lines.push(
+      `${formatDate(o.createdAt)} — ${formatSom(o.total)} — ${ORDER_STATUS_LABEL[o.status] ?? o.status}\n${itemsLabel}`
+    );
+  }
+  await sendMessage(store.telegramBotToken!, chatId, lines.join("\n\n"));
+}
+
 async function askRegistrationName(store: Store, chatId: string, retry = false) {
   const text = retry
-    ? "Iltimos, ism va familiyangizni birga yozing (masalan: Ali Valiyev):"
-    : `👋 ${store.name} do'koniga xush kelibsiz!\n\nBuyurtma berish uchun avval ro'yxatdan o'ting.\nIsm va familiyangizni yozing (masalan: Ali Valiyev):`;
+    ? "Iltimos, to'liq ism sharfingizni kiriting (masalan: Bahodir Adhamov Tohirovich):"
+    : `👋 ${store.name} do'koniga xush kelibsiz!\n\nTo'liq ism sharfingizni kiriting (masalan: Bahodir Adhamov Tohirovich):`;
   await sendMessage(store.telegramBotToken!, chatId, text, { removeKeyboard: true });
 }
 
@@ -469,12 +528,30 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
     await showMenu(store, chatId);
     return;
   }
-  if (text === BTN_PRODUCTS || text === "/mahsulotlar") {
-    await showProducts(store, chatId, undefined, { categoryId: null });
+  if (text === BTN_DISCOUNTS || text === "/aksiya") {
+    await showProducts(store, chatId, undefined, { onSaleOnly: true });
+    return;
+  }
+  if (text === BTN_INFO || text === "/malumot") {
+    await showStoreInfo(store, chatId);
+    return;
+  }
+  if (text === BTN_MY_ORDERS || text === "/buyurtmalarim") {
+    await showMyOrders(store, chatId, customer.phone);
     return;
   }
   if (text === BTN_CART || text === "/cart" || text === "/savatcha") {
     await showCart(store, chatId, undefined, cart);
+    return;
+  }
+  if (text === BTN_LOCATION || text === "/manzil") {
+    if (store.locationLat != null && store.locationLng != null) {
+      await sendLocation(token, chatId, store.locationLat, store.locationLng);
+    } else if (store.address) {
+      await sendMessage(token, chatId, `📍 ${store.address}`);
+    } else {
+      await sendMessage(token, chatId, "Manzil hali kiritilmagan.");
+    }
     return;
   }
 

@@ -21,6 +21,8 @@ type Row = {
   presentDays: number;
   absentDays: number;
   deduction: number;
+  partialDays: number;
+  partialDeduction: number;
   pay: number;
   paid: number;
   remaining: number;
@@ -107,6 +109,7 @@ export function OylikTab({ employees }: { employees: { id: string; name: string 
                   <th className="py-2 pr-3 font-medium">Xodim</th>
                   <th className="py-2 pr-3 font-medium">Ishlagan kunlar</th>
                   <th className="py-2 pr-3 font-medium">Kelmagan kunlar</th>
+                  <th className="py-2 pr-3 font-medium">Kech/erta ketgan</th>
                   <th className="py-2 pr-3 font-medium">Oylik</th>
                   <th className="py-2 pr-3 font-medium">To&apos;langan</th>
                   <th className="py-2 pl-3 text-right font-medium" />
@@ -121,6 +124,15 @@ export function OylikTab({ employees }: { employees: { id: string; name: string 
                       {r.absentDays > 0 ? (
                         <span className="text-danger">
                           {r.absentDays} · −{formatSom(r.deduction)}
+                        </span>
+                      ) : (
+                        "0"
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-3 text-muted">
+                      {r.partialDays > 0 ? (
+                        <span className="text-warning">
+                          {r.partialDays} · −{formatSom(r.partialDeduction)}
                         </span>
                       ) : (
                         "0"

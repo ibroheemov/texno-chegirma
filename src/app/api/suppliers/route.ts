@@ -14,9 +14,23 @@ export async function GET() {
   });
 
   // Debt is shown in dollars: dollar purchases natively, so'm purchases converted
-  // at the live CBU rate (the store's manual rate if CBU is unreachable).
-  const store = await prisma.store.findUnique({ where: { id: session.storeId } });
-  const rateInfo = await getUsdRate(store?.usdRate);
+  // at the live rate (the store's manual rate if no live source is reachable).
+  const rateInfo = await getUsdRate(session.storeId);
+
+  // Current warehouse value of stock ever received from each supplier (stock *
+  // costPrice, same basis as Ombor's "Jami tan narx"). A product restocked from
+  // more than one supplier would have its whole current stock counted under each
+  // — harmless today since no product here has more than one source.
+  const productIds = [
+    ...new Set(suppliers.flatMap((s) => s.receipts.map((r) => r.productId).filter((id): id is string => !!id))),
+  ];
+  const products = productIds.length
+    ? await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, stock: true, costPrice: true },
+      })
+    : [];
+  const productMap = new Map(products.map((p) => [p.id, p]));
 
   const rows = suppliers.map((s) => {
     const distinctProducts = new Set(s.receipts.map((r) => r.productId ?? r.productName)).size;
@@ -45,6 +59,11 @@ export async function GET() {
     debtUsd = Math.round(debtUsd * 100) / 100;
     const cash = s.receipts.filter((r) => r.paymentMethod === "CASH").reduce((sum, r) => sum + r.totalCost, 0);
     const card = s.receipts.filter((r) => r.paymentMethod === "CARD").reduce((sum, r) => sum + r.totalCost, 0);
+    const supplierProductIds = new Set(s.receipts.map((r) => r.productId).filter((id): id is string => !!id));
+    const stockValue = [...supplierProductIds].reduce((sum, id) => {
+      const p = productMap.get(id);
+      return sum + (p ? p.stock * p.costPrice : 0);
+    }, 0);
     return {
       id: s.id,
       name: s.name,
@@ -59,6 +78,7 @@ export async function GET() {
       debtUsd,
       debtUsdEstimated,
       receiptsCount: s.receipts.length,
+      stockValue,
     };
   });
 

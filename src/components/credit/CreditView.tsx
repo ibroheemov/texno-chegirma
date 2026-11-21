@@ -55,6 +55,10 @@ export function CreditView() {
     () => ledgers.reduce((s, l) => s + Math.max(0, l.totalAmount - l.paidAmount), 0),
     [ledgers]
   );
+  const overdueDebt = useMemo(
+    () => overdue.reduce((s, l) => s + Math.max(0, l.totalAmount - l.paidAmount), 0),
+    [overdue]
+  );
   const totalPaid = useMemo(() => ledgers.reduce((s, l) => s + l.paidAmount, 0), [ledgers]);
   const debtorCount = new Set(
     ledgers.filter((l) => l.paidAmount < l.totalAmount).map((l) => l.customer.id)
@@ -71,9 +75,9 @@ export function CreditView() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Jami qarz" value={formatSom(totalDebt)} icon={Landmark} />
+        <StatCard label="Nasiyadagi summa" value={formatSom(totalDebt)} icon={Landmark} />
         <StatCard label="To'langan" value={formatSom(totalPaid)} icon={CheckCircle} />
-        <StatCard label="Muddati o'tgan" value={String(overdue.length)} icon={AlertCircle} deltaTone="danger" />
+        <StatCard label="Muddati o'tgan" value={formatSom(overdueDebt)} icon={AlertCircle} deltaTone="danger" />
         <StatCard label="Qarzdorlar" value={String(debtorCount)} icon={Users} />
       </div>
 
