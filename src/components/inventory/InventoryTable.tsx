@@ -15,6 +15,7 @@ import {
   Loader2,
   MoreVertical,
   Truck,
+  Upload,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -31,6 +32,7 @@ import { ProductFormModal } from "./ProductFormModal";
 import { BarcodeLabelsModal } from "./BarcodeLabelsModal";
 import { InventoryFilterModal, emptyInventoryFilters, type InventoryFilters } from "./InventoryFilterModal";
 import { GoodsReceiptModal, type SupplierOption } from "./GoodsReceiptModal";
+import { ImportProductsModal } from "./ImportProductsModal";
 import { exportProductsToExcel } from "@/lib/exportExcel";
 
 type ProductWithCategory = Product & { category: Category | null };
@@ -60,6 +62,7 @@ export function InventoryTable({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<InventoryFilters>(emptyInventoryFilters);
   const [lightboxProduct, setLightboxProduct] = useState<ProductWithCategory | null>(null);
@@ -182,6 +185,9 @@ export function InventoryTable({
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => exportProductsToExcel(filtered)} size="sm" variant="secondary">
             <FileSpreadsheet size={16} /> Excelga yuklash
+          </Button>
+          <Button onClick={() => setImportOpen(true)} size="sm" variant="secondary">
+            <Upload size={16} /> Import qilish
           </Button>
           <Button onClick={() => setBarcodeOpen(true)} size="sm" variant="secondary">
             <Barcode size={16} /> Barcode
@@ -350,6 +356,12 @@ export function InventoryTable({
         product={editing}
       />
       <BarcodeLabelsModal open={barcodeOpen} onClose={() => setBarcodeOpen(false)} products={filtered} />
+      <ImportProductsModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => router.refresh()}
+        categoryNames={categories.map((c) => c.name)}
+      />
       <GoodsReceiptModal
         open={!!restockTarget}
         onClose={() => setRestockTarget(null)}
