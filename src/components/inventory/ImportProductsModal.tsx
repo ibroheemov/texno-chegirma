@@ -1,34 +1,49 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Upload, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { formatSom } from "@/lib/format";
+import { cn } from "@/lib/cn";
 
-type TargetField = "name" | "sku" | "price" | "costPrice" | "barcodePrice" | "stock" | "category" | "unit";
+type TargetField =
+  | "name"
+  | "sku"
+  | "price"
+  | "costPrice"
+  | "barcodePrice"
+  | "stock"
+  | "category"
+  | "unit"
+  | "lowStockAt"
+  | "salePrice";
 
 const TARGET_FIELDS: { key: TargetField; label: string; required?: boolean }[] = [
   { key: "name", label: "Nomi", required: true },
   { key: "price", label: "Sotuv narxi", required: true },
   { key: "costPrice", label: "Tan narx" },
   { key: "barcodePrice", label: "Barkod narxi" },
+  { key: "salePrice", label: "Chegirmali narx" },
   { key: "sku", label: "Shtrix kod" },
   { key: "stock", label: "Miqdor" },
+  { key: "lowStockAt", label: "Kam qoldi chegarasi" },
   { key: "category", label: "Kategoriya" },
   { key: "unit", label: "O'lchov birligi" },
 ];
 
-// Checked in order — more specific patterns (tan narx, barkod narxi) must come
-// before the generic "narx" one so a header like "Tan narx" doesn't get
-// guessed as the sale price.
+// Checked in order — more specific patterns (tan narx, barkod narxi, chegirmali
+// narx) must come before the generic "narx" one so headers like "Tan narx" or
+// "Chegirmali narx" don't get guessed as the plain sale price.
 const GUESS_PATTERNS: [TargetField, RegExp][] = [
   ["sku", /shtrix|barcode|\bsku\b|\bkod\b/i],
   ["costPrice", /tan\s*narx|cost/i],
   ["barcodePrice", /barkod.*narx/i],
+  ["salePrice", /chegirma.*narx|chegirmali|sale\s*price|aksiya.*narx/i],
   ["price", /narx|price|baho/i],
+  ["lowStockAt", /kam\s*qol.*chegara|minimal|min\s*qoldiq|low\s*stock/i],
   ["stock", /miqdor|qoldiq|soni|stock|qty/i],
   ["category", /kategoriya|turkum|\bturi\b|category/i],
   ["unit", /birlik|o'lcham|o'lchov|unit/i],
@@ -58,6 +73,9 @@ type MappedRow = {
   stock: number;
   category: string;
   unit: string;
+  lowStockAt: number | null;
+  salePrice: number | null;
+  onSale: boolean;
 };
 
 type ImportResult = {
@@ -87,6 +105,30 @@ export function ImportProductsModal({
   const [parseError, setParseError] = useState("");
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  // Tan narx (cost price) column's currency — a spreadsheet may list costs in
+  // dollars at a fixed exchange rate rather than so'm.
+  const [costCurrency, setCostCurrency] = useState<"SOM" | "USD">("SOM");
+  const [usdRateInput, setUsdRateInput] = useState("");
+  const [usdRateHint, setUsdRateHint] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/usd-rate")
+      .then((r) => r.json())
+      .then((d) => {
+        const info = d.rate as { rate: number; source: "telegram" | "cbu" | "manual"; date?: string } | null;
+        if (!info) return;
+        setUsdRateInput((prev) => prev || String(info.rate));
+        setUsdRateHint(
+          info.source === "cbu"
+            ? `CBU kursi (${info.date})`
+            : info.source === "telegram"
+              ? "Bozor kursi (Telegram)"
+              : "Qo'lda kiritilgan kurs"
+        );
+      })
+      .catch(() => {});
+  }, [open]);
 
   function reset() {
     setStep("upload");
@@ -96,6 +138,7 @@ export function ImportProductsModal({
     setMapping({});
     setParseError("");
     setResult(null);
+    setCostCurrency("SOM");
   }
 
   function handleClose() {
@@ -131,23 +174,37 @@ export function ImportProductsModal({
     }
   }
 
+  const parsedUsdRate = Number(usdRateInput || 0);
+  const costNeedsRate = !!mapping.costPrice && costCurrency === "USD" && !(parsedUsdRate > 0);
+
   const mappedRows: MappedRow[] = useMemo(
     () =>
-      rawRows.map((r) => ({
-        name: mapping.name ? String(r[mapping.name] ?? "").trim() : "",
-        sku: mapping.sku ? String(r[mapping.sku] ?? "").trim() : "",
-        price: mapping.price ? parseNumber(r[mapping.price]) : 0,
-        costPrice: mapping.costPrice ? parseNumber(r[mapping.costPrice]) : 0,
-        barcodePrice: mapping.barcodePrice ? parseNumber(r[mapping.barcodePrice]) || null : null,
-        stock: mapping.stock ? parseNumber(r[mapping.stock]) : 0,
-        category: mapping.category ? String(r[mapping.category] ?? "").trim() : "",
-        unit: mapping.unit ? String(r[mapping.unit] ?? "").trim() : "",
-      })),
-    [rawRows, mapping]
+      rawRows.map((r) => {
+        const salePrice = mapping.salePrice ? parseNumber(r[mapping.salePrice]) || null : null;
+        const rawCostPrice = mapping.costPrice ? parseNumber(r[mapping.costPrice]) : 0;
+        return {
+          name: mapping.name ? String(r[mapping.name] ?? "").trim() : "",
+          sku: mapping.sku ? String(r[mapping.sku] ?? "").trim() : "",
+          price: mapping.price ? parseNumber(r[mapping.price]) : 0,
+          costPrice:
+            costCurrency === "USD" && parsedUsdRate > 0 ? Math.round(rawCostPrice * parsedUsdRate) : rawCostPrice,
+          barcodePrice: mapping.barcodePrice ? parseNumber(r[mapping.barcodePrice]) || null : null,
+          stock: mapping.stock ? parseNumber(r[mapping.stock]) : 0,
+          category: mapping.category ? String(r[mapping.category] ?? "").trim() : "",
+          unit: mapping.unit ? String(r[mapping.unit] ?? "").trim() : "",
+          lowStockAt: mapping.lowStockAt ? parseNumber(r[mapping.lowStockAt]) : null,
+          salePrice,
+          // A row is treated as "on sale" whenever a valid discount price is given —
+          // there's no separate on/off column in a spreadsheet, so the discount
+          // price column itself doubles as the toggle.
+          onSale: salePrice != null && salePrice > 0,
+        };
+      }),
+    [rawRows, mapping, costCurrency, parsedUsdRate]
   );
 
   const invalidCount = mappedRows.filter((r) => !r.name || !(r.price > 0)).length;
-  const canImport = !!mapping.name && !!mapping.price && mappedRows.length - invalidCount > 0;
+  const canImport = !!mapping.name && !!mapping.price && mappedRows.length - invalidCount > 0 && !costNeedsRate;
   const existingCategorySet = useMemo(
     () => new Set(categoryNames.map((c) => c.toLowerCase())),
     [categoryNames]
@@ -164,6 +221,11 @@ export function ImportProductsModal({
         // updating an existing product (matched by SKU), unmapped fields are
         // left untouched instead of being overwritten with defaults (0/null).
         mappedFields: TARGET_FIELDS.map((f) => f.key).filter((k) => !!mapping[k]),
+        // Cost price has already been converted to so'm above; the rate is
+        // also sent so dollar-priced products stay pegged to it and rescale
+        // automatically as the live USD rate moves, like a manually added one.
+        costCurrencyUsd: costCurrency === "USD",
+        usdRate: parsedUsdRate,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -212,31 +274,77 @@ export function ImportProductsModal({
 
           <div className="flex flex-col gap-2">
             {TARGET_FIELDS.map((f) => (
-              <div key={f.key} className="grid grid-cols-2 items-center gap-2">
-                <label className="text-sm">
-                  {f.label}
-                  {f.required && <span className="text-danger"> *</span>}
-                </label>
-                <Select
-                  value={mapping[f.key] ?? ""}
-                  onChange={(e) =>
-                    setMapping((prev) => ({ ...prev, [f.key]: e.target.value || undefined }))
-                  }
-                >
-                  <option value="">— tanlanmagan —</option>
-                  {headers.map((h) => (
-                    <option key={h} value={h}>
-                      {h}
-                    </option>
-                  ))}
-                </Select>
+              <div key={f.key}>
+                <div className="grid grid-cols-2 items-center gap-2">
+                  <label className="text-sm">
+                    {f.label}
+                    {f.required && <span className="text-danger"> *</span>}
+                  </label>
+                  <Select
+                    value={mapping[f.key] ?? ""}
+                    onChange={(e) =>
+                      setMapping((prev) => ({ ...prev, [f.key]: e.target.value || undefined }))
+                    }
+                  >
+                    <option value="">— tanlanmagan —</option>
+                    {headers.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                {f.key === "costPrice" && mapping.costPrice && (
+                  <div className="mt-1.5 flex items-center gap-2 pl-0">
+                    <div className="flex rounded-lg border border-border p-0.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setCostCurrency("SOM")}
+                        className={cn(
+                          "rounded-md px-2 py-1 font-medium",
+                          costCurrency === "SOM" ? "bg-accent text-accent-foreground" : "text-muted"
+                        )}
+                      >
+                        so&apos;m
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCostCurrency("USD")}
+                        className={cn(
+                          "rounded-md px-2 py-1 font-medium",
+                          costCurrency === "USD" ? "bg-accent text-accent-foreground" : "text-muted"
+                        )}
+                      >
+                        USD
+                      </button>
+                    </div>
+                    {costCurrency === "USD" && (
+                      <div className="flex items-center gap-1 text-xs">
+                        <span className="text-muted">Kurs (1$=</span>
+                        <input
+                          type="number"
+                          step="any"
+                          value={usdRateInput}
+                          onChange={(e) => setUsdRateInput(e.target.value)}
+                          className="h-7 w-24 rounded-md border border-border bg-surface px-1.5 text-right outline-none focus:border-accent"
+                        />
+                        <span className="text-muted">so&apos;m)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {f.key === "costPrice" && mapping.costPrice && costCurrency === "USD" && usdRateHint && (
+                  <p className="pl-0 text-[10px] text-muted">{usdRateHint}</p>
+                )}
               </div>
             ))}
           </div>
 
           {!canImport && (
             <p className="text-xs text-danger">
-              &quot;Nomi&quot; va &quot;Sotuv narxi&quot; uchun ustun tanlang.
+              {costNeedsRate
+                ? "Tan narx USD tanlandi — kursni kiriting."
+                : "\"Nomi\" va \"Sotuv narxi\" uchun ustun tanlang."}
             </p>
           )}
           {canImport && invalidCount > 0 && (
@@ -246,13 +354,18 @@ export function ImportProductsModal({
           )}
 
           <div className="max-h-56 overflow-auto rounded-lg border border-border">
-            <table className="w-full min-w-[520px] text-xs">
+            <table className="w-full min-w-[960px] text-xs">
               <thead>
                 <tr className="border-b border-border text-left text-muted">
                   <th className="px-2 py-1.5 font-medium">Nomi</th>
-                  <th className="px-2 py-1.5 font-medium">Kod</th>
-                  <th className="px-2 py-1.5 text-right font-medium">Narx</th>
+                  <th className="px-2 py-1.5 font-medium">Shtrix kod</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Sotuv narxi</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Tan narx</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Barkod narxi</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Chegirmali narx</th>
                   <th className="px-2 py-1.5 text-right font-medium">Miqdor</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Kam qoldi chegarasi</th>
+                  <th className="px-2 py-1.5 font-medium">O&apos;lchov</th>
                   <th className="px-2 py-1.5 font-medium">Kategoriya</th>
                 </tr>
               </thead>
@@ -264,7 +377,23 @@ export function ImportProductsModal({
                       <td className="truncate px-2 py-1.5">{r.name || "—"}</td>
                       <td className="px-2 py-1.5">{r.sku || "(avto)"}</td>
                       <td className="px-2 py-1.5 text-right">{r.price ? formatSom(r.price) : "—"}</td>
+                      <td className="px-2 py-1.5 text-right">{r.costPrice ? formatSom(r.costPrice) : "—"}</td>
+                      <td className="px-2 py-1.5 text-right">{r.barcodePrice ? formatSom(r.barcodePrice) : "—"}</td>
+                      <td className="px-2 py-1.5 text-right">
+                        {r.onSale && r.salePrice ? (
+                          <span className="flex items-center justify-end gap-1">
+                            {formatSom(r.salePrice)}
+                            <Badge tone="danger" className="px-1.5 py-0 text-[10px]">
+                              aksiya
+                            </Badge>
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td className="px-2 py-1.5 text-right">{r.stock}</td>
+                      <td className="px-2 py-1.5 text-right">{r.lowStockAt ?? "—"}</td>
+                      <td className="px-2 py-1.5">{r.unit || "—"}</td>
                       <td className="px-2 py-1.5">
                         {r.category ? (
                           <span className="flex items-center gap-1">

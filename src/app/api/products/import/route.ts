@@ -11,6 +11,9 @@ type ImportRow = {
   stock: number;
   category: string;
   unit: string;
+  lowStockAt: number | null;
+  salePrice: number | null;
+  onSale: boolean;
 };
 
 export async function POST(req: NextRequest) {
@@ -27,6 +30,11 @@ export async function POST(req: NextRequest) {
   // step — on update, a field the user never mapped is left untouched rather
   // than being overwritten with a default (0/null).
   const mappedFields: Set<string> = new Set(Array.isArray(body.mappedFields) ? body.mappedFields : []);
+  // Cost price has already been converted to so'm client-side; when it came
+  // from a USD column we also record the rate, so the product stays pegged
+  // and rescales with the live USD rate like a manually added dollar product.
+  const costCurrencyUsd = Boolean(body.costCurrencyUsd);
+  const importUsdRate = costCurrencyUsd && Number(body.usdRate) > 0 ? Number(body.usdRate) : null;
 
   // Cache category name -> id lookups within this batch so the same new
   // category name (e.g. "Aksessuarlar" repeated across many rows) is only
@@ -66,6 +74,7 @@ export async function POST(req: NextRequest) {
 
     const sku = (r.sku || "").trim() || `AUTO-${Date.now()}${i}`;
     const categoryId = r.category ? await resolveCategoryId(r.category) : null;
+    const onSale = Boolean(r.onSale && Number(r.salePrice) > 0);
     const data = {
       name,
       price,
@@ -74,6 +83,10 @@ export async function POST(req: NextRequest) {
       stock: Math.max(0, Math.round(Number(r.stock) || 0)),
       unit: (r.unit || "").trim() || "dona",
       categoryId,
+      lowStockAt: r.lowStockAt != null && Number(r.lowStockAt) >= 0 ? Math.round(Number(r.lowStockAt)) : 3,
+      onSale,
+      salePrice: onSale ? Math.round(Number(r.salePrice)) : null,
+      usdRate: importUsdRate,
     };
 
     try {
@@ -87,6 +100,12 @@ export async function POST(req: NextRequest) {
         if (mappedFields.has("stock")) updateData.stock = data.stock;
         if (mappedFields.has("unit")) updateData.unit = data.unit;
         if (mappedFields.has("category")) updateData.categoryId = data.categoryId;
+        if (mappedFields.has("lowStockAt")) updateData.lowStockAt = data.lowStockAt;
+        if (mappedFields.has("salePrice")) {
+          updateData.onSale = data.onSale;
+          updateData.salePrice = data.salePrice;
+        }
+        if (mappedFields.has("costPrice") && costCurrencyUsd) updateData.usdRate = data.usdRate;
         await prisma.product.update({ where: { id: existingProduct.id }, data: updateData });
         updated++;
       } else {
