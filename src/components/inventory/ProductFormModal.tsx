@@ -72,9 +72,18 @@ export function ProductFormModal({
       setName(product?.name ?? "");
       setSku(product?.sku ?? "");
       setPrice(product ? String(product.price) : "");
-      setCostPrice(product ? String(product.costPrice) : "");
-      setCurrency("SOM");
-      setUsdRateInput("");
+      // A product already pegged to the dollar (usdRate set) keeps showing its
+      // cost price back-converted to USD, so editing it doesn't silently drop
+      // the peg by resetting to "So'm".
+      if (product?.usdRate) {
+        setCurrency("USD");
+        setUsdRateInput(String(product.usdRate));
+        setCostPrice(String(Math.round((product.costPrice / product.usdRate) * 100) / 100));
+      } else {
+        setCurrency("SOM");
+        setUsdRateInput("");
+        setCostPrice(product ? String(product.costPrice) : "");
+      }
       setStock(product ? String(product.stock) : "");
       setUnit((product?.unit as UnitOption) ?? "dona");
       setLowStockAt(product ? String(product.lowStockAt) : "3");
@@ -223,14 +232,16 @@ export function ProductFormModal({
       barcodePrice: barcodePrice || null,
       onSale,
       salePrice: onSale ? salePrice : null,
+      // Sent on both create and edit, so switching a product into (or out of)
+      // Dollar mode while editing it actually takes effect.
+      currency: currency === "USD" ? "usd" : "som",
+      usdRate: currency === "USD" ? parsedUsdRate : null,
       ...(isEdit
         ? {}
         : {
             supplierId: supplierId || undefined,
             paymentMethod,
-            currency: currency === "USD" ? "usd" : "som",
             costUsd: currency === "USD" ? Number(costPrice || 0) : undefined,
-            usdRate: currency === "USD" ? parsedUsdRate : undefined,
           }),
     };
     const res = await fetch(product ? `/api/products/${product.id}` : "/api/products", {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { getUsdRate, syncUsdPrices } from "@/lib/usdRate";
+import { syncUsdPrices } from "@/lib/usdRate";
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[id]">) {
   const session = await getSession();
@@ -14,9 +14,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
   if (!product) return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
 
   // Prices were synced when the list loaded; re-sync so a manual edit is based
-  // on the current rate, then re-anchor the product to it after saving.
+  // on the current rate.
   await syncUsdPrices(session.storeId);
   const images: string[] = Array.isArray(body.images) ? body.images.filter((u: unknown) => typeof u === "string") : [];
+
+  // The edit form sends its own currency + rate, same as creating a product —
+  // this is what lets switching a product into (or out of) Dollar mode while
+  // editing it actually take effect, instead of only working at creation time.
+  const currency = body.currency === "usd" ? "usd" : "som";
+  const usdRate = currency === "usd" && Number(body.usdRate) > 0 ? Number(body.usdRate) : null;
 
   const updated = await prisma.product.update({
     where: { id },
@@ -34,15 +40,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
       barcodePrice: body.barcodePrice ? Number(body.barcodePrice) : null,
       onSale: Boolean(body.onSale),
       salePrice: body.onSale && body.salePrice ? Number(body.salePrice) : null,
+      usdRate,
     },
   });
-
-  if (product.usdRate != null) {
-    const info = await getUsdRate(session.storeId);
-    if (info?.source === "cbu" || info?.source === "telegram") {
-      await prisma.product.update({ where: { id }, data: { usdRate: info.rate } });
-    }
-  }
 
   return NextResponse.json({ product: updated });
 }
