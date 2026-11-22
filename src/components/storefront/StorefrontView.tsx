@@ -278,10 +278,10 @@ function CartDrawer({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
       <div
-        className="flex h-full w-full max-w-sm flex-col bg-surface p-5"
+        className="flex h-full w-full max-w-sm flex-col bg-surface"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center justify-between p-5 pb-4">
           <h2 className="text-sm font-semibold">Savatcha</h2>
           <button onClick={onClose} className="text-muted">
             ✕
@@ -289,7 +289,7 @@ function CartDrawer({
         </div>
 
         {success ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-5 text-center">
             <CheckCircle2 size={40} className="text-accent" />
             <p className="text-sm font-semibold">Buyurtma qabul qilindi!</p>
             <p className="text-xs text-muted">Tez orada siz bilan bog&apos;lanamiz</p>
@@ -299,7 +299,7 @@ function CartDrawer({
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto px-5">
               {cart.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted">Savatcha bo&apos;sh</p>
               ) : (
@@ -335,107 +335,114 @@ function CartDrawer({
                   ))}
                 </div>
               )}
-            </div>
 
-            <div className="mt-4 flex items-center justify-between border-t border-dashed border-border pt-3 text-base">
-              <span className="font-semibold">JAMI</span>
-              <span className="font-bold text-accent">{formatSom(total)}</span>
-            </div>
+              <div className="mt-4 flex items-center justify-between border-t border-dashed border-border pt-3 text-base">
+                <span className="font-semibold">JAMI</span>
+                <span className="font-bold text-accent">{formatSom(total)}</span>
+              </div>
 
-            <div className="mt-4 flex flex-col gap-3">
-              <Field label="Ismingiz">
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
-              </Field>
-              <Field label="Telefon raqamingiz">
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998 90 123 45 67" />
-              </Field>
-              <Field label="Yetkazib berish manzili (ixtiyoriy)">
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Mahalla, ko'cha, uy..." />
-                <button
-                  type="button"
-                  onClick={detectLocation}
-                  disabled={locating}
-                  className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-accent disabled:opacity-60"
-                >
-                  {locating ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
-                  {locating ? "Joylashuv aniqlanmoqda..." : "Joylashuvimni xaritadan aniqlash"}
-                </button>
-                {locationError && <p className="mt-1 text-xs text-danger">{locationError}</p>}
-                {mapCoords && (
-                  <div className="mt-2 overflow-hidden rounded-lg border border-border">
-                    <iframe
-                      key={`${mapCoords.lat},${mapCoords.lng}`}
-                      title="Joylashuv xaritasi"
-                      className="h-40 w-full"
-                      loading="lazy"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapCoords.lng - 0.01}%2C${mapCoords.lat - 0.01}%2C${mapCoords.lng + 0.01}%2C${mapCoords.lat + 0.01}&layer=mapnik&marker=${mapCoords.lat}%2C${mapCoords.lng}`}
-                    />
+              <div className="mt-4 flex flex-col gap-3 pb-5">
+                <Field label="Ismingiz">
+                  <Input value={name} onChange={(e) => setName(e.target.value)} />
+                </Field>
+                <Field label="Telefon raqamingiz">
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998 90 123 45 67" />
+                </Field>
+                <Field label="Yetkazib berish manzili (ixtiyoriy)">
+                  <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Mahalla, ko'cha, uy..." />
+                  <button
+                    type="button"
+                    onClick={detectLocation}
+                    disabled={locating}
+                    className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-accent disabled:opacity-60"
+                  >
+                    {locating ? <Loader2 size={13} className="animate-spin" /> : <MapPin size={13} />}
+                    {locating ? "Joylashuv aniqlanmoqda..." : "Joylashuvimni xaritadan aniqlash"}
+                  </button>
+                  {locationError && <p className="mt-1 text-xs text-danger">{locationError}</p>}
+                  {mapCoords && (
+                    <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                      <iframe
+                        key={`${mapCoords.lat},${mapCoords.lng}`}
+                        title="Joylashuv xaritasi"
+                        className="h-40 w-full"
+                        loading="lazy"
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapCoords.lng - 0.01}%2C${mapCoords.lat - 0.01}%2C${mapCoords.lng + 0.01}%2C${mapCoords.lat + 0.01}&layer=mapnik&marker=${mapCoords.lat}%2C${mapCoords.lng}`}
+                      />
+                    </div>
+                  )}
+                </Field>
+                <Field label="To'lov usuli">
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("CASH")}
+                      className={cn(
+                        "rounded-lg border border-border py-2 text-sm font-medium text-muted",
+                        paymentMethod === "CASH" && "border-accent bg-accent-soft text-accent"
+                      )}
+                    >
+                      Naqd
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("CARD")}
+                      className={cn(
+                        "rounded-lg border border-border py-2 text-sm font-medium text-muted",
+                        paymentMethod === "CARD" && "border-accent bg-accent-soft text-accent"
+                      )}
+                    >
+                      Karta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("INSTALLMENT")}
+                      className={cn(
+                        "rounded-lg border border-border py-2 text-xs font-medium text-muted",
+                        paymentMethod === "INSTALLMENT" && "border-accent bg-accent-soft text-accent"
+                      )}
+                    >
+                      Muddatli to&apos;lov
+                    </button>
+                  </div>
+                </Field>
+
+                {paymentMethod === "INSTALLMENT" && (
+                  <div className="rounded-lg bg-surface-muted p-3">
+                    <p className="text-xs font-medium text-muted">Necha oyga bo&apos;lib to&apos;lamoqchisiz?</p>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {([3, 6, 12] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setInstallmentMonths(m)}
+                          className={cn(
+                            "rounded-lg border border-border py-2 text-sm font-medium text-muted",
+                            installmentMonths === m && "border-accent bg-accent-soft text-accent"
+                          )}
+                        >
+                          {m} oy
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-sm">
+                      Oyiga to&apos;lov:{" "}
+                      <span className="font-bold text-accent">
+                        {formatSom(Math.ceil(total / installmentMonths))}
+                      </span>
+                    </p>
                   </div>
                 )}
-              </Field>
-              <Field label="To'lov usuli">
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("CASH")}
-                    className={cn(
-                      "rounded-lg border border-border py-2 text-sm font-medium text-muted",
-                      paymentMethod === "CASH" && "border-accent bg-accent-soft text-accent"
-                    )}
-                  >
-                    Naqd
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("CARD")}
-                    className={cn(
-                      "rounded-lg border border-border py-2 text-sm font-medium text-muted",
-                      paymentMethod === "CARD" && "border-accent bg-accent-soft text-accent"
-                    )}
-                  >
-                    Karta
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("INSTALLMENT")}
-                    className={cn(
-                      "rounded-lg border border-border py-2 text-xs font-medium text-muted",
-                      paymentMethod === "INSTALLMENT" && "border-accent bg-accent-soft text-accent"
-                    )}
-                  >
-                    Muddatli to&apos;lov
-                  </button>
-                </div>
-              </Field>
-
-              {paymentMethod === "INSTALLMENT" && (
-                <div className="rounded-lg bg-surface-muted p-3">
-                  <p className="text-xs font-medium text-muted">Necha oyga bo&apos;lib to&apos;lamoqchisiz?</p>
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {([3, 6, 12] as const).map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => setInstallmentMonths(m)}
-                        className={cn(
-                          "rounded-lg border border-border py-2 text-sm font-medium text-muted",
-                          installmentMonths === m && "border-accent bg-accent-soft text-accent"
-                        )}
-                      >
-                        {m} oy
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-sm">
-                    Oyiga to&apos;lov:{" "}
-                    <span className="font-bold text-accent">
-                      {formatSom(Math.ceil(total / installmentMonths))}
-                    </span>
-                  </p>
-                </div>
-              )}
-              {error && <p className="text-sm text-danger">{error}</p>}
-              <Button size="lg" disabled={submitting || cart.length === 0} onClick={submit}>
+                {error && <p className="text-sm text-danger">{error}</p>}
+              </div>
+            </div>
+            <div className="shrink-0 border-t border-border p-5 pt-3">
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={submitting || cart.length === 0}
+                onClick={submit}
+              >
                 {submitting && <Loader2 size={16} className="animate-spin" />}
                 Buyurtma berish
               </Button>

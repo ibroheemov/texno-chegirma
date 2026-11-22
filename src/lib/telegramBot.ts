@@ -159,12 +159,18 @@ async function showCart(
   else await sendMessage(store.telegramBotToken!, chatId, text, { inlineKeyboard: keyboard });
 }
 
-async function showStoreInfo(store: Store, chatId: string) {
-  const lines = [`🏪 ${store.name}`, ""];
-  if (store.phone) lines.push(`📞 Telefon: ${store.phone}`);
-  if (store.address) lines.push(`📍 Manzil: ${store.address}`);
-  if (store.telegramUsername) lines.push(`✈️ Telegram: ${store.telegramUsername}`);
-  if (lines.length === 2) lines.push("Ma'lumot hali kiritilmagan.");
+async function showCustomerInfo(
+  store: Store,
+  chatId: string,
+  customer: { name: string; phone: string | null; address: string | null }
+) {
+  const lines = [
+    "👤 Sizning ma'lumotlaringiz",
+    "",
+    `Ism: ${customer.name}`,
+    `📞 Telefon: ${customer.phone ?? "kiritilmagan"}`,
+    `📍 Manzil: ${customer.address ?? "kiritilmagan"}`,
+  ];
   await sendMessage(store.telegramBotToken!, chatId, lines.join("\n"));
 }
 
@@ -541,7 +547,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
     return;
   }
   if (text === BTN_INFO || text === "/malumot") {
-    await showStoreInfo(store, chatId);
+    await showCustomerInfo(store, chatId, customer);
     return;
   }
   if (text === BTN_MY_ORDERS || text === "/buyurtmalarim") {
