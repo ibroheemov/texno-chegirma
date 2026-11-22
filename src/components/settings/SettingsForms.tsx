@@ -397,7 +397,7 @@ export function PaymentSettingsCard({ store }: { store: StoreData }) {
         Qo&apos;shimcha usullar hisobga olish uchun ro&apos;yxatda saqlanadi; kassadagi to&apos;lov tugmalari
         Naqd/Karta/Nasiya/Aralash bo&apos;lib qoladi. &quot;Kechiktirilgan&quot; belgilangan usul — mahsulot
         uchinchi tomon kompaniyasi orqali sotilgan va pul do&apos;konga darhol tushmaydi; kassada shu usul
-        tanlanganda pul kelish sanasi va izoh kiritiladi (Moliya → Kechiktirilgan to&apos;lovlar
+        tanlanganda pul kelish sanasi va izoh kiritiladi (Moliya → Ishonch/Yuksalish
         bo&apos;limida kuzatiladi).
       </p>
 

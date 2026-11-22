@@ -749,7 +749,7 @@ export function PosView({
           <div className="mt-2 flex flex-col gap-2 rounded-lg bg-surface-muted p-3">
             <p className="flex items-center gap-1.5 text-xs text-muted">
               <Clock size={12} />
-              Pul uchinchi tomondan keyinroq tushadi (Moliya → Kechiktirilgan to&apos;lovlar)
+              Pul uchinchi tomondan keyinroq tushadi (Moliya → Ishonch/Yuksalish)
             </p>
             <div className="flex flex-col gap-1 text-xs text-muted">
               Pul kelish sanasi *

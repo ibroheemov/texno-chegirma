@@ -7,7 +7,12 @@ import { Logo } from "@/components/ui/Logo";
 // Shows live stock/prices, so it must not be statically prerendered.
 export const dynamic = "force-dynamic";
 
-export default async function StorefrontPage() {
+export default async function StorefrontPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aksiya?: string }>;
+}) {
+  const { aksiya } = await searchParams;
   const store = await prisma.store.findFirst();
   if (!store) {
     return (
@@ -41,7 +46,7 @@ export default async function StorefrontPage() {
         </div>
       </header>
       <div className="mx-auto max-w-6xl px-4 py-6">
-        <StorefrontView products={products} categories={categories} />
+        <StorefrontView products={products} categories={categories} initialOnSaleOnly={aksiya === "1"} />
       </div>
     </div>
   );

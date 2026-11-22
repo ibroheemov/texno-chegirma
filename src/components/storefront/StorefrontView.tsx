@@ -16,22 +16,26 @@ type CartLine = { product: ProductWithCategory; qty: number };
 export function StorefrontView({
   products,
   categories,
+  initialOnSaleOnly = false,
 }: {
   products: ProductWithCategory[];
   categories: Category[];
+  initialOnSaleOnly?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string | undefined>();
+  const [onSaleOnly, setOnSaleOnly] = useState(initialOnSaleOnly);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
+      if (onSaleOnly && !p.onSale) return false;
       if (categoryId && p.categoryId !== categoryId) return false;
       if (query && !p.name.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
-  }, [products, categoryId, query]);
+  }, [products, categoryId, query, onSaleOnly]);
 
   function addToCart(product: ProductWithCategory) {
     setCart((prev) => {
@@ -82,6 +86,15 @@ export function StorefrontView({
           )}
         >
           Barchasi
+        </button>
+        <button
+          onClick={() => setOnSaleOnly((v) => !v)}
+          className={cn(
+            "rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted",
+            onSaleOnly && "border-accent bg-accent-soft text-accent"
+          )}
+        >
+          🏷 Aksiyadagi tovarlar
         </button>
         {categories.map((c) => (
           <button

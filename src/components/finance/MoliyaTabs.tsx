@@ -34,7 +34,7 @@ const TABS: { key: Tab; label: string; icon: typeof Wallet }[] = [
   { key: "hisobot", label: "Hisobot", icon: FileBarChart },
   { key: "tovar", label: "Tovar beruvchi", icon: Truck },
   { key: "sotuvchilar", label: "Sotuvchilar", icon: Users },
-  { key: "settlements", label: "Kechiktirilgan to'lovlar", icon: Clock },
+  { key: "settlements", label: "Ishonch/Yuksalish", icon: Clock },
 ];
 
 export type CustomerOption = { id: string; name: string; phone: string | null };

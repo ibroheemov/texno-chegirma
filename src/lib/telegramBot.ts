@@ -52,11 +52,17 @@ const BTN_CART = "🛒 Savatcha";
 const BTN_LOCATION = "📍 Manzilimiz";
 
 // The bot's main menu is a persistent keyboard under the chat input; the
-// "Do'konni ochish" button opens the Mini App storefront.
+// "Do'konni ochish" and "Aksiyadagi tovarlar" buttons open the Mini App storefront
+// (the latter pre-filtered to discounted products).
 function mainKeyboard(store: Store): ReplyKeyboard {
   return [
     ...(store.publicUrl ? [[{ text: BTN_OPEN_STORE, web_app: { url: `${store.publicUrl}/do-kon` } }]] : []),
-    [{ text: BTN_DISCOUNTS }, { text: BTN_INFO }],
+    [
+      store.publicUrl
+        ? { text: BTN_DISCOUNTS, web_app: { url: `${store.publicUrl}/do-kon?aksiya=1` } }
+        : { text: BTN_DISCOUNTS },
+      { text: BTN_INFO },
+    ],
     [{ text: BTN_MY_ORDERS }, { text: BTN_CART }],
     ...(store.locationLat != null && store.locationLng != null ? [[{ text: BTN_LOCATION }]] : []),
   ];
@@ -199,17 +205,14 @@ async function showMyOrders(store: Store, chatId: string, customerPhone: string 
 async function askRegistrationName(store: Store, chatId: string, retry = false) {
   const text = retry
     ? "Iltimos, to'liq ism sharfingizni kiriting (masalan: Bahodir Adhamov Tohirovich):"
-    : `👋 ${store.name} do'koniga xush kelibsiz!\n\nTo'liq ism sharfingizni kiriting (masalan: Bahodir Adhamov Tohirovich):`;
+    : "👤️ To'liq ism sharfingizni kiriting (masalan: Bahodir Adhamov Tohirovich)";
   await sendMessage(store.telegramBotToken!, chatId, text, { removeKeyboard: true });
 }
 
-async function askRegistrationPhone(store: Store, chatId: string, name?: string) {
-  await sendMessage(
-    store.telegramBotToken!,
-    chatId,
-    `${name ? `Rahmat, ${name}! ` : ""}Endi telefon raqamingizni yuboring:`,
-    { requestContact: true }
-  );
+async function askRegistrationPhone(store: Store, chatId: string) {
+  await sendMessage(store.telegramBotToken!, chatId, "📲️ Endi telefon raqamingizni yuboring", {
+    requestContact: true,
+  });
 }
 
 // "Ism Familiya": at least two words, no commands.
@@ -220,10 +223,15 @@ function parseFullName(text: string): string | null {
 }
 
 async function askRegistrationAddress(store: Store, chatId: string) {
-  await sendMessage(store.telegramBotToken!, chatId, "Manzilingizni yozing (ixtiyoriy):", {
-    inlineKeyboard: [[{ text: "O'tkazib yuborish", callback_data: "register:skipaddress" }]],
-    removeKeyboard: true,
-  });
+  await sendMessage(
+    store.telegramBotToken!,
+    chatId,
+    "🏡 Manzilingizni yozing (masalan: Toshkent viloyati, Uchtepa tumani, Pastdargoh ko'chasi 5-uy)",
+    {
+      inlineKeyboard: [[{ text: "O'tkazib yuborish", callback_data: "register:skipaddress" }]],
+      removeKeyboard: true,
+    }
+  );
 }
 
 function normalizePhone(raw: string) {
@@ -352,7 +360,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
       }
       if (!session.customerPhone) {
         await prisma.telegramSession.update({ where: { id: session.id }, data: { state: "register_phone" } });
-        await askRegistrationPhone(store, chatId, session.customerName);
+        await askRegistrationPhone(store, chatId);
         return;
       }
       const created = await registerCustomer(store, chatId, {
@@ -387,7 +395,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
           where: { id: session.id },
           data: { customerName: name, state: "register_phone" },
         });
-        await askRegistrationPhone(store, chatId, name);
+        await askRegistrationPhone(store, chatId);
         return;
       }
       if (message?.contact && session.state === "register_phone") {
