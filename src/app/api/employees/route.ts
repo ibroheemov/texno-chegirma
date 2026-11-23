@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       passwordHash,
       isCourier: Boolean(body.isCourier),
       salary: Number(body.salary ?? 0),
-      salaryType: body.salaryType === "DAILY" ? "DAILY" : "MONTHLY",
+      salaryType: body.salaryType === "DAILY" ? "DAILY" : body.salaryType === "HOURLY" ? "HOURLY" : "MONTHLY",
       workStartTime: body.workStartTime || null,
       workEndTime: body.workEndTime || null,
       photoUrl: body.photoUrl || null,

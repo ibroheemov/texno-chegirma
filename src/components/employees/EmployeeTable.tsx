@@ -11,9 +11,12 @@ import { StatCard } from "@/components/ui/StatCard";
 import { formatSom } from "@/lib/format";
 import { EmployeeFormModal } from "./EmployeeFormModal";
 import { FaceCheckInModal } from "./FaceCheckInModal";
+import { Modal } from "@/components/ui/Modal";
+import { Field } from "@/components/ui/Field";
+import { TimePicker24 } from "@/components/ui/TimePicker24";
 import { Users, UserCheck, UserX, Clock } from "lucide-react";
 
-export type EmployeeRow = Employee & { presentToday: boolean; onShift: boolean };
+export type EmployeeRow = Employee & { presentToday: boolean; onShift: boolean; unclosedDate: string | null };
 
 export function EmployeeTable({ initialEmployees }: { initialEmployees: EmployeeRow[] }) {
   const router = useRouter();
@@ -21,6 +24,33 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
   const [editing, setEditing] = useState<Employee | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
   const [checkInTarget, setCheckInTarget] = useState<EmployeeRow | null>(null);
+  const [fixTarget, setFixTarget] = useState<EmployeeRow | null>(null);
+  const [fixTime, setFixTime] = useState("");
+  const [fixError, setFixError] = useState("");
+
+  function localDateKey(iso: string) {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  async function saveFix() {
+    if (!fixTarget?.unclosedDate || !fixTime) {
+      setFixError("Chiqish vaqtini tanlang");
+      return;
+    }
+    const res = await fetch(`/api/employees/${fixTarget.id}/attendance`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: localDateKey(fixTarget.unclosedDate), time: fixTime }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setFixError(data.error ?? "Xatolik yuz berdi");
+      return;
+    }
+    setFixTarget(null);
+    router.refresh();
+  }
 
   const total = initialEmployees.length;
   const presentCount = initialEmployees.filter((e) => e.presentToday).length;
@@ -78,7 +108,8 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
                     {e.name} {e.isCourier && <Badge tone="info">Kuriyer</Badge>}
                   </p>
                   <p className="text-xs text-muted">
-                    {e.position ?? "Lavozim yo'q"} · {formatSom(e.salary)}/{e.salaryType === "DAILY" ? "kun" : "oy"}
+                    {e.position ?? "Lavozim yo'q"} · {formatSom(e.salary)}/
+                    {e.salaryType === "DAILY" ? "kun" : e.salaryType === "HOURLY" ? "soat" : "oy"}
                     {e.phone && (
                       <span className="ml-1 inline-flex items-center gap-1">
                         <Phone size={10} /> {e.phone}
@@ -88,6 +119,19 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {e.unclosedDate && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setFixTarget(e);
+                      setFixTime(e.workEndTime ?? "");
+                      setFixError("");
+                    }}
+                  >
+                    <Clock size={14} className="text-warning" /> Chiqish belgilanmagan
+                  </Button>
+                )}
                 {e.onShift ? (
                   <>
                     <Badge tone="accent">
@@ -136,6 +180,21 @@ export function EmployeeTable({ initialEmployees }: { initialEmployees: Employee
         onSaved={() => router.refresh()}
         employee={editing}
       />
+      <Modal open={!!fixTarget} onClose={() => setFixTarget(null)} title="Chiqish vaqtini kiritish">
+        {fixTarget?.unclosedDate && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted">
+              {fixTarget.name} {new Date(fixTarget.unclosedDate).toLocaleDateString("uz-UZ")} kuni ketganini
+              belgilamagan. Haqiqiy ketgan vaqtni kiriting.
+            </p>
+            <Field label="Chiqish vaqti (24 soat)">
+              <TimePicker24 value={fixTime} onChange={setFixTime} />
+            </Field>
+            {fixError && <p className="text-sm text-danger">{fixError}</p>}
+            <Button onClick={saveFix}>Saqlash</Button>
+          </div>
+        )}
+      </Modal>
       {checkInTarget && (
         <FaceCheckInModal
           open={!!checkInTarget}

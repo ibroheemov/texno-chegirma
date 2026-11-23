@@ -75,15 +75,29 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/
   const employee = await prisma.employee.findFirst({ where: { id, storeId: session.storeId } });
   if (!employee) return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
 
-  const today = startOfDay(new Date());
-  const existing = await prisma.attendance.findUnique({ where: { employeeId_date: { employeeId: id, date: today } } });
+  // Optional { date: "YYYY-MM-DD", time: "HH:MM" } lets the admin fix a day
+  // where the employee forgot to check out; default is "now, today".
+  const body = await req.json().catch(() => ({}));
+  const day = typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? startOfDay(new Date(`${body.date}T00:00:00`)) : startOfDay(new Date());
+  const existing = await prisma.attendance.findUnique({ where: { employeeId_date: { employeeId: id, date: day } } });
   if (!existing || !existing.checkIn) {
     return NextResponse.json({ error: "Avval kelganini belgilang" }, { status: 400 });
   }
 
+  let checkOut = new Date();
+  if (typeof body.time === "string") {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(body.time);
+    if (!m) return NextResponse.json({ error: "Vaqt noto'g'ri" }, { status: 400 });
+    checkOut = new Date(day);
+    checkOut.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    if (checkOut <= existing.checkIn) {
+      return NextResponse.json({ error: "Chiqish vaqti kelgan vaqtdan keyin bo'lishi kerak" }, { status: 400 });
+    }
+  }
+
   const attendance = await prisma.attendance.update({
-    where: { employeeId_date: { employeeId: id, date: today } },
-    data: { checkOut: new Date() },
+    where: { employeeId_date: { employeeId: id, date: day } },
+    data: { checkOut },
   });
 
   return NextResponse.json({ attendance });

@@ -16,7 +16,8 @@ type Period = "today" | "week" | "month";
 type Row = {
   id: string;
   name: string;
-  salaryType: "MONTHLY" | "DAILY";
+  salaryType: "MONTHLY" | "DAILY" | "HOURLY";
+  totalHours?: number;
   salary: number;
   presentDays: number;
   absentDays: number;
@@ -119,7 +120,10 @@ export function OylikTab({ employees }: { employees: { id: string; name: string 
                 {rows.map((r) => (
                   <tr key={r.id} className="border-b border-border/60 last:border-0">
                     <td className="py-2.5 pr-3 font-medium">{r.name}</td>
-                    <td className="py-2.5 pr-3">{r.presentDays}</td>
+                    <td className="py-2.5 pr-3">
+                      {r.presentDays}
+                      {r.totalHours != null && <span className="text-muted"> · {r.totalHours} soat</span>}
+                    </td>
                     <td className="py-2.5 pr-3 text-muted">
                       {r.absentDays > 0 ? (
                         <span className="text-danger">

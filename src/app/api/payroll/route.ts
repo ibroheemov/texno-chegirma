@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { moliyaPeriodStart, startOfDay } from "@/lib/stats";
+import { autoCloseOpenShifts } from "@/lib/attendance";
 
 const MONTHLY_DIVISOR = 30;
 
@@ -37,6 +38,8 @@ export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
 
+  await autoCloseOpenShifts(session.storeId);
+
   const { searchParams } = new URL(req.url);
   const period = searchParams.get("period") ?? "month";
   const employeeId = searchParams.get("employeeId") ?? undefined;
@@ -70,20 +73,36 @@ export async function GET(req: NextRequest) {
     const elapsedDays = Math.max(0, Math.round((today.getTime() - rangeStart.getTime()) / 86400000) + 1);
     const presentDays = Math.min(e.attendance.length, elapsedDays);
     const absentDays = Math.max(0, elapsedDays - presentDays);
-    const dailyRate = e.salaryType === "DAILY" ? e.salary : Math.round(e.salary / MONTHLY_DIVISOR);
-    const deduction = absentDays * dailyRate;
 
+    let pay: number;
+    let deduction = 0;
     let partialDays = 0;
     let partialDeduction = 0;
-    for (const att of e.attendance) {
-      const fraction = shiftFraction(att.checkIn, att.checkOut, e.workStartTime, e.workEndTime);
-      if (fraction < 1) {
-        partialDays += 1;
-        partialDeduction += Math.round(dailyRate * (1 - fraction));
+    let totalHours: number | undefined;
+
+    if (e.salaryType === "HOURLY") {
+      // Hourly pay already reflects exactly how long each shift was, so there's
+      // no separate day-based deduction to compute — absent days simply don't
+      // contribute hours.
+      totalHours = e.attendance.reduce((sum, att) => {
+        if (!att.checkIn || !att.checkOut) return sum;
+        const hours = (att.checkOut.getTime() - att.checkIn.getTime()) / 3_600_000;
+        return sum + Math.max(0, hours);
+      }, 0);
+      pay = Math.round(e.salary * totalHours);
+    } else {
+      const dailyRate = e.salaryType === "DAILY" ? e.salary : Math.round(e.salary / MONTHLY_DIVISOR);
+      deduction = absentDays * dailyRate;
+      for (const att of e.attendance) {
+        const fraction = shiftFraction(att.checkIn, att.checkOut, e.workStartTime, e.workEndTime);
+        if (fraction < 1) {
+          partialDays += 1;
+          partialDeduction += Math.round(dailyRate * (1 - fraction));
+        }
       }
+      pay = dailyRate * presentDays - partialDeduction;
     }
 
-    const pay = dailyRate * presentDays - partialDeduction;
     const paid = paidMap.get(e.id) ?? 0;
     return {
       id: e.id,
@@ -98,6 +117,7 @@ export async function GET(req: NextRequest) {
       pay,
       paid,
       remaining: Math.max(0, pay - paid),
+      ...(totalHours != null ? { totalHours: Math.round(totalHours * 100) / 100 } : {}),
     };
   });
 

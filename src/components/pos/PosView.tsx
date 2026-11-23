@@ -100,6 +100,8 @@ export function PosView({
   const [mixedModalOpen, setMixedModalOpen] = useState(false);
   const [standaloneCustomMethod, setStandaloneCustomMethod] = useState<string | null>(null);
   const [settlementDate, setSettlementDate] = useState("");
+  const defaultDueDate = () => new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const [dueDate, setDueDate] = useState(defaultDueDate);
   const [settlementNote, setSettlementNote] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -291,6 +293,7 @@ export function PosView({
         deliveryAddress: deliveryAddress.trim(),
         deliveryDate: needsDelivery ? `${deliveryDate}T${deliveryTime}` : undefined,
         settlementDate: hasDeferredSelection ? settlementDate : undefined,
+        dueDate: creditAmount > 0 ? dueDate : undefined,
         settlementNote: hasDeferredSelection ? settlementNote.trim() : undefined,
       }),
     });
@@ -329,6 +332,7 @@ export function PosView({
     setMixedCustomAmounts({});
     setStandaloneCustomMethod(null);
     setSettlementDate("");
+    setDueDate(defaultDueDate());
     setSettlementNote("");
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2000);
@@ -765,6 +769,13 @@ export function PosView({
               placeholder="Izoh (ixtiyoriy)"
               className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent"
             />
+          </div>
+        )}
+
+        {(method === "CREDIT" || (method === "MIXED" && mixedCredit > 0)) && !standaloneCustomMethod && (
+          <div className="mt-2 flex flex-col gap-1 rounded-lg bg-surface-muted p-3 text-xs text-muted">
+            Nasiya to&apos;lov muddati *
+            <DeliveryDatePicker value={dueDate} onChange={setDueDate} min={new Date().toISOString().slice(0, 10)} />
           </div>
         )}
 

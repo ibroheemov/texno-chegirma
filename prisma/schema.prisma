@@ -34,6 +34,7 @@ enum AttendanceStatus {
 enum SalaryType {
   MONTHLY
   DAILY
+  HOURLY
 }
 
 enum OrderStatus {

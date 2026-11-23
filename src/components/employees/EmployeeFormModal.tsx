@@ -5,6 +5,7 @@ import type { Employee } from "@prisma/client";
 import { Modal } from "@/components/ui/Modal";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { TimePicker24 } from "@/components/ui/TimePicker24";
 import { Loader2, Camera, MapPin, CheckCircle2, ScanFace, AlertTriangle } from "lucide-react";
 import { detectFaceDescriptor } from "@/lib/faceapi-client";
 
@@ -35,7 +36,7 @@ export function EmployeeFormModal({
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [isCourier, setIsCourier] = useState(false);
-  const [salaryType, setSalaryType] = useState<"monthly" | "daily">("monthly");
+  const [salaryType, setSalaryType] = useState<"monthly" | "daily" | "hourly">("monthly");
   const [salary, setSalary] = useState("");
   const [workStartTime, setWorkStartTime] = useState("");
   const [workEndTime, setWorkEndTime] = useState("");
@@ -58,7 +59,9 @@ export function EmployeeFormModal({
       setLogin(employee?.login ?? "");
       setPassword("");
       setIsCourier(employee?.isCourier ?? defaultIsCourier);
-      setSalaryType(employee?.salaryType === "DAILY" ? "daily" : "monthly");
+      setSalaryType(
+        employee?.salaryType === "DAILY" ? "daily" : employee?.salaryType === "HOURLY" ? "hourly" : "monthly"
+      );
       setSalary(employee ? String(employee.salary) : "");
       setWorkStartTime(employee?.workStartTime ?? "");
       setWorkEndTime(employee?.workEndTime ?? "");
@@ -121,7 +124,7 @@ export function EmployeeFormModal({
         password: password || undefined,
         isCourier,
         salary,
-        salaryType: salaryType === "daily" ? "DAILY" : "MONTHLY",
+        salaryType: salaryType === "daily" ? "DAILY" : salaryType === "hourly" ? "HOURLY" : "MONTHLY",
         workStartTime: workStartTime || null,
         workEndTime: workEndTime || null,
         photoUrl,
@@ -179,6 +182,7 @@ export function EmployeeFormModal({
               [
                 ["monthly", "Oylik"],
                 ["daily", "Kunlik"],
+                ["hourly", "Soatlik"],
               ] as [typeof salaryType, string][]
             ).map(([key, label]) => (
               <button
@@ -196,21 +200,35 @@ export function EmployeeFormModal({
             ))}
           </div>
         </Field>
-        <Field label={salaryType === "daily" ? "Kunlik maosh (so'm)" : "Oylik maosh (so'm)"}>
+        <Field
+          label={
+            salaryType === "daily"
+              ? "Kunlik maosh (so'm)"
+              : salaryType === "hourly"
+                ? "Soatlik maosh (so'm)"
+                : "Oylik maosh (so'm)"
+          }
+        >
           <Input
             type="number"
             value={salary}
             onChange={(e) => setSalary(e.target.value)}
-            placeholder={salaryType === "daily" ? "Masalan: 150000 so'm/kun" : "Masalan: 3000000 so'm/oy"}
+            placeholder={
+              salaryType === "daily"
+                ? "Masalan: 150000 so'm/kun"
+                : salaryType === "hourly"
+                  ? "Masalan: 15000 so'm/soat"
+                  : "Masalan: 3000000 so'm/oy"
+            }
           />
         </Field>
 
         <div className="grid grid-cols-2 gap-2">
           <Field label="Ish boshlanishi (ixtiyoriy)">
-            <Input type="time" value={workStartTime} onChange={(e) => setWorkStartTime(e.target.value)} />
+            <TimePicker24 value={workStartTime} onChange={setWorkStartTime} />
           </Field>
           <Field label="Ish tugashi (ixtiyoriy)">
-            <Input type="time" value={workEndTime} onChange={(e) => setWorkEndTime(e.target.value)} />
+            <TimePicker24 value={workEndTime} onChange={setWorkEndTime} />
           </Field>
         </div>
         <p className="-mt-2 text-xs text-muted">
