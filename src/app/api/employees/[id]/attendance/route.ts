@@ -79,7 +79,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/
   // where the employee forgot to check out; default is "now, today".
   const body = await req.json().catch(() => ({}));
   const day = typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? startOfDay(new Date(`${body.date}T00:00:00`)) : startOfDay(new Date());
-  const existing = await prisma.attendance.findUnique({ where: { employeeId_date: { employeeId: id, date: day } } });
+  const nextDay = new Date(day);
+  nextDay.setDate(nextDay.getDate() + 1);
+  const existing = await prisma.attendance.findFirst({ where: { employeeId: id, date: { gte: day, lt: nextDay } } });
   if (!existing || !existing.checkIn) {
     return NextResponse.json({ error: "Avval kelganini belgilang" }, { status: 400 });
   }
@@ -96,7 +98,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/
   }
 
   const attendance = await prisma.attendance.update({
-    where: { employeeId_date: { employeeId: id, date: day } },
+    where: { id: existing.id },
     data: { checkOut },
   });
 
