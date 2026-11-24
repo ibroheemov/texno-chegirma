@@ -9,6 +9,9 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/employees/[
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   const { id } = await ctx.params;
+  if (session.role === "EMPLOYEE" && session.employeeId !== id) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
   const employee = await prisma.employee.findFirst({ where: { id, storeId: session.storeId } });
   if (!employee) return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
 
@@ -72,12 +75,18 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   const { id } = await ctx.params;
+  if (session.role === "EMPLOYEE" && session.employeeId !== id) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
   const employee = await prisma.employee.findFirst({ where: { id, storeId: session.storeId } });
   if (!employee) return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
 
   // Optional { date: "YYYY-MM-DD", time: "HH:MM" } lets the admin fix a day
   // where the employee forgot to check out; default is "now, today".
   const body = await req.json().catch(() => ({}));
+  if (session.role === "EMPLOYEE" && (body.date || body.time)) {
+    return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+  }
   const day = typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? startOfDay(new Date(`${body.date}T00:00:00`)) : startOfDay(new Date());
   const nextDay = new Date(day);
   nextDay.setDate(nextDay.getDate() + 1);

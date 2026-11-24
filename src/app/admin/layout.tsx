@@ -7,15 +7,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const isEmployee = session.role === "EMPLOYEE";
   const [store, user] = await Promise.all([
     prisma.store.findUnique({ where: { id: session.storeId } }),
-    prisma.user.findUnique({ where: { id: session.userId } }),
+    isEmployee
+      ? prisma.employee.findFirst({ where: { id: session.employeeId, active: true }, select: { name: true } })
+      : prisma.user.findUnique({ where: { id: session.userId } }),
   ]);
 
   if (!store || !user) redirect("/login");
 
   return (
-    <AdminShell storeName={store.name} userName={user.name}>
+    <AdminShell storeName={store.name} userName={user.name} restricted={isEmployee}>
       {children}
     </AdminShell>
   );

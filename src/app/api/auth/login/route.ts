@@ -9,16 +9,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Login va parolni kiriting" }, { status: 400 });
   }
 
+  const invalid = NextResponse.json({ error: "Login yoki parol noto'g'ri" }, { status: 401 });
+
   const user = await prisma.user.findUnique({ where: { login } });
-  if (!user) {
-    return NextResponse.json({ error: "Login yoki parol noto'g'ri" }, { status: 401 });
+  if (user) {
+    if (!(await bcrypt.compare(password, user.password))) return invalid;
+    await createSession({ userId: user.id, storeId: user.storeId, role: user.role });
+    return NextResponse.json({ ok: true });
   }
 
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) {
-    return NextResponse.json({ error: "Login yoki parol noto'g'ri" }, { status: 401 });
-  }
+  // Not an admin/cashier account — try store employees.
+  const employee = await prisma.employee.findFirst({ where: { login, active: true } });
+  if (!employee || !employee.passwordHash) return invalid;
+  if (!(await bcrypt.compare(password, employee.passwordHash))) return invalid;
 
-  await createSession({ userId: user.id, storeId: user.storeId, role: user.role });
+  await createSession({
+    userId: employee.id,
+    employeeId: employee.id,
+    storeId: employee.storeId,
+    role: "EMPLOYEE",
+  });
   return NextResponse.json({ ok: true });
 }

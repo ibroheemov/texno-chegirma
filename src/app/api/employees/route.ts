@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isLoginTaken } from "@/lib/loginUnique";
 
 export async function GET() {
   const session = await getSession();
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
   if (!body.login) return NextResponse.json({ error: "Login kiriting" }, { status: 400 });
   if (!body.password) return NextResponse.json({ error: "Parol kiriting" }, { status: 400 });
 
+  const login = String(body.login).trim();
+  if (await isLoginTaken(login)) return NextResponse.json({ error: "Bu login band" }, { status: 400 });
   const passwordHash = await bcrypt.hash(String(body.password), 10);
 
   const employee = await prisma.employee.create({
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
       name: body.name,
       position: body.position || null,
       phone: body.phone || null,
-      login: body.login,
+      login,
       passwordHash,
       isCourier: Boolean(body.isCourier),
       salary: Number(body.salary ?? 0),

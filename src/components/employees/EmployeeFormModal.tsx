@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Field, Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { TimePicker24 } from "@/components/ui/TimePicker24";
-import { Loader2, Camera, MapPin, CheckCircle2, ScanFace, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, Loader2, Camera, MapPin, CheckCircle2, ScanFace, AlertTriangle } from "lucide-react";
 import { detectFaceDescriptor } from "@/lib/faceapi-client";
 
 function safeParseDescriptor(raw: string): number[] | null {
@@ -35,6 +35,7 @@ export function EmployeeFormModal({
   const [phone, setPhone] = useState("");
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isCourier, setIsCourier] = useState(false);
   const [salaryType, setSalaryType] = useState<"monthly" | "daily" | "hourly">("monthly");
   const [salary, setSalary] = useState("");
@@ -158,12 +159,25 @@ export function EmployeeFormModal({
           <Input value={login} onChange={(e) => setLogin(e.target.value)} placeholder="login" />
         </Field>
         <Field label={employee ? "Parol (o'zgartirish uchun to'ldiring)" : "Parol *"}>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={employee ? "••••••••" : ""}
-          />
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={employee ? "••••••••" : ""}
+              className="w-full pr-10"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-0 top-0 flex h-full w-10 items-center justify-center text-muted hover:text-foreground"
+              aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
+              title={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
         </Field>
 
         <label className="flex items-center gap-2 text-sm">

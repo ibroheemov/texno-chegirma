@@ -9,10 +9,12 @@ import { Logo } from "@/components/ui/Logo";
 
 export function Sidebar({
   storeName,
+  restricted = false,
   open,
   onClose,
 }: {
   storeName: string;
+  restricted?: boolean;
   open: boolean;
   onClose: () => void;
 }) {
@@ -45,7 +47,7 @@ export function Sidebar({
           <span className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
             Asosiy menyu
           </span>
-          {navItems.map((item) => {
+          {(restricted ? navItems.slice(0, 1) : navItems).map((item) => {
             const active =
               item.href === "/admin"
                 ? pathname === "/admin"
@@ -67,6 +69,7 @@ export function Sidebar({
               </Link>
             );
           })}
+          {!restricted && (<>
           <span className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wide text-muted">
             Do&apos;kon
           </span>
@@ -79,6 +82,7 @@ export function Sidebar({
             <storeNavItem.icon size={18} />
             {storeNavItem.label}
           </a>
+          </>)}
         </nav>
       </aside>
     </>

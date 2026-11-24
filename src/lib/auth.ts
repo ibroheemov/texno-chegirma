@@ -10,7 +10,9 @@ const secret = new TextEncoder().encode(
 export type SessionPayload = {
   userId: string;
   storeId: string;
-  role: "ADMIN" | "CASHIER";
+  role: "ADMIN" | "CASHIER" | "EMPLOYEE";
+  /** Set only for EMPLOYEE sessions; userId then holds the employee id too. */
+  employeeId?: string;
 };
 
 export async function createSession(payload: SessionPayload) {

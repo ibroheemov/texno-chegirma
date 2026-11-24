@@ -10,11 +10,11 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent"
+      className={cn("h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent", className)}
     />
   );
 }

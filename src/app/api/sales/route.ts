@@ -13,7 +13,9 @@ export async function POST(req: NextRequest) {
   const items: CartItem[] = body.items ?? [];
   const paymentMethod: "CASH" | "CARD" | "CREDIT" | "MIXED" | "CUSTOM" = body.paymentMethod;
   const customerId: string | undefined = body.customerId || undefined;
-  const employeeId: string | undefined = body.employeeId || undefined;
+  // Employee accounts always sell as themselves.
+  const employeeId: string | undefined =
+    session.role === "EMPLOYEE" ? session.employeeId : body.employeeId || undefined;
   const cashAmount: number = body.cashAmount ?? 0;
   const cardAmount: number = body.cardAmount ?? 0;
   const creditAmount: number = body.creditAmount ?? 0;

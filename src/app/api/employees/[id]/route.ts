@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isLoginTaken } from "@/lib/loginUnique";
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/[id]">) {
   const session = await getSession();
@@ -11,6 +12,10 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/
   if (!employee) return NextResponse.json({ error: "Topilmadi" }, { status: 404 });
 
   const body = await req.json();
+  const newLogin = body.login ? String(body.login).trim() : null;
+  if (newLogin && newLogin !== employee.login && (await isLoginTaken(newLogin, id))) {
+    return NextResponse.json({ error: "Bu login band" }, { status: 400 });
+  }
   const updated = await prisma.employee.update({
     where: { id },
     data: {
@@ -28,7 +33,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/employees/
               : employee.salaryType,
       workStartTime: body.workStartTime !== undefined ? body.workStartTime || null : employee.workStartTime,
       workEndTime: body.workEndTime !== undefined ? body.workEndTime || null : employee.workEndTime,
-      login: body.login || employee.login,
+      login: newLogin || employee.login,
       passwordHash: body.password ? await bcrypt.hash(String(body.password), 10) : employee.passwordHash,
       isCourier: body.isCourier ?? employee.isCourier,
       photoUrl: body.photoUrl !== undefined ? body.photoUrl || null : employee.photoUrl,

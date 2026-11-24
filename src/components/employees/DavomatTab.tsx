@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Clock, CheckCircle2, ListChecks, MapPin, MapPinOff, ScanFace } from "lucide-react";
+import { Loader2, Pencil, Plus, Clock, CheckCircle2, ListChecks, MapPin, MapPinOff, ScanFace } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/Button";
+import { AttendanceEditModal } from "./AttendanceEditModal";
 
 type Period = "today" | "week" | "month";
 
@@ -38,6 +40,8 @@ export function DavomatTab({ employees }: { employees: { id: string; name: strin
     avgMinutes: null,
   });
   const [loading, setLoading] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState<AttendanceRecord | null>(null);
 
   async function load() {
     setLoading(true);
@@ -90,10 +94,20 @@ export function DavomatTab({ employees }: { employees: { id: string; name: strin
               {label}
             </button>
           ))}
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() => {
+              setEditing(null);
+              setEditorOpen(true);
+            }}
+          >
+            <Plus size={14} /> Davomat qo&apos;shish
+          </Button>
           <select
             value={employeeId}
             onChange={(e) => setEmployeeId(e.target.value)}
-            className="ml-auto h-9 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-accent"
+            className="h-9 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-accent"
           >
             <option value="all">Barcha xodimlar</option>
             {employees.map((e) => (
@@ -138,6 +152,17 @@ export function DavomatTab({ employees }: { employees: { id: string; name: strin
                       </span>
                     )}
                     <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                    <button
+                      onClick={() => {
+                        setEditing(r);
+                        setEditorOpen(true);
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-muted text-foreground hover:text-accent"
+                      aria-label="Tahrirlash"
+                      title="Tahrirlash"
+                    >
+                      <Pencil size={14} />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -145,6 +170,13 @@ export function DavomatTab({ employees }: { employees: { id: string; name: strin
           )}
         </div>
       </Card>
+    <AttendanceEditModal
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onSaved={load}
+        record={editing}
+        employees={employees}
+      />
     </div>
   );
 }

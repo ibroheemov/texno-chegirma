@@ -10,10 +10,13 @@ import { pageTitles } from "@/lib/page-titles";
 export function AdminShell({
   storeName,
   userName,
+  restricted = false,
   children,
 }: {
   storeName: string;
   userName: string;
+  /** Employee accounts only see the Kassa page. */
+  restricted?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -29,7 +32,7 @@ export function AdminShell({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar storeName={storeName} open={open} onClose={() => setOpen(false)} />
+      <Sidebar restricted={restricted} storeName={storeName} open={open} onClose={() => setOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur lg:px-6">
           <button
