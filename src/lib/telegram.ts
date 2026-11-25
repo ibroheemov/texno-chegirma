@@ -46,7 +46,8 @@ export async function notifyNewOrder(
 
 export type InlineKeyboardButton =
   | { text: string; callback_data: string }
-  | { text: string; web_app: { url: string } };
+  | { text: string; web_app: { url: string } }
+  | { text: string; url: string };
 export type InlineKeyboard = InlineKeyboardButton[][];
 
 // Persistent keyboard shown under the chat input (as opposed to inline buttons

@@ -49,7 +49,9 @@ const BTN_DISCOUNTS = "🏷 Aksiyadagi tovarlar";
 const BTN_INFO = "ℹ️ Ma'lumotlar";
 const BTN_MY_ORDERS = "📋 Buyurtmalarim";
 const BTN_CART = "🛒 Savatcha";
-const BTN_LOCATION = "📍 Manzilimiz";
+const BTN_LOCATION = "📍 Do'kon lokatsiyasi";
+const BTN_HELP = "👨‍🔧 Yordam";
+const SUPPORT_TELEGRAM_USERNAME = "zafarovich_14";
 
 // The bot's main menu is a persistent keyboard under the chat input; the
 // "Do'konni ochish" and "Aksiyadagi tovarlar" buttons open the Mini App storefront
@@ -64,7 +66,7 @@ function mainKeyboard(store: Store): ReplyKeyboard {
       { text: BTN_INFO },
     ],
     [{ text: BTN_MY_ORDERS }, { text: BTN_CART }],
-    ...(store.locationLat != null && store.locationLng != null ? [[{ text: BTN_LOCATION }]] : []),
+    [{ text: BTN_LOCATION }, { text: BTN_HELP }],
   ];
 }
 
@@ -566,6 +568,12 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
     } else {
       await sendMessage(token, chatId, "Manzil hali kiritilmagan.");
     }
+    return;
+  }
+  if (text === BTN_HELP) {
+    await sendMessage(token, chatId, "Yordam uchun xodimimizga yozing:", {
+      inlineKeyboard: [[{ text: "👨‍🔧 Xodim bilan bog'lanish", url: `https://t.me/${SUPPORT_TELEGRAM_USERNAME}` }]],
+    });
     return;
   }
 
