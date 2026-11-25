@@ -22,7 +22,7 @@ export default async function KassaPage() {
     getDaySummary(session.storeId, today),
     getDaySummary(session.storeId, yesterday),
     prisma.product.findMany({
-      where: { storeId: session.storeId },
+      where: { storeId: session.storeId, stock: { gt: 0 } },
       orderBy: { name: "asc" },
       take: 24,
       include: { category: true },

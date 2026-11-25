@@ -34,6 +34,13 @@ type ProductWithCategory = Product & { category: Category | null };
 type CartLine = {
   product: ProductWithCategory;
   qty: number;
+  adjustment: PriceAdjustment | null;
+};
+
+type PriceAdjustment = {
+  direction: "discount" | "increase";
+  unit: "percent" | "amount";
+  value: number;
 };
 
 type StatusFilter = "all" | "available" | "low" | "out" | "discount";
@@ -43,6 +50,16 @@ type LastSale = ReceiptSale;
 
 function effectivePrice(p: Product) {
   return p.onSale && p.salePrice ? p.salePrice : p.price;
+}
+
+function cartUnitPrice(line: CartLine) {
+  const basePrice = effectivePrice(line.product);
+  if (!line.adjustment) return basePrice;
+  const adjustment =
+    line.adjustment.unit === "percent"
+      ? (basePrice * line.adjustment.value) / 100
+      : line.adjustment.value;
+  return Math.max(0, basePrice + (line.adjustment.direction === "discount" ? -adjustment : adjustment));
 }
 
 function stockBadge(p: Product) {
@@ -74,7 +91,7 @@ export function PosView({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("available");
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [products, setProducts] = useState(initialProducts);
   const [loading, setLoading] = useState(false);
@@ -142,8 +159,25 @@ export function PosView({
           l.product.id === product.id ? { ...l, qty: l.qty + 1 } : l
         );
       }
-      return [...prev, { product, qty: 1 }];
+      return [...prev, { product, qty: 1, adjustment: null }];
     });
+  }
+
+  function updatePriceAdjustment(productId: string, adjustment: PriceAdjustment | null) {
+    const normalizedAdjustment = adjustment
+      ? {
+          ...adjustment,
+          value: Math.min(
+            adjustment.direction === "discount" && adjustment.unit === "percent" ? 100 : Infinity,
+            Number.isFinite(adjustment.value) ? Math.max(0, adjustment.value) : 0
+          ),
+        }
+      : null;
+    setCart((prev) =>
+      prev.map((line) =>
+        line.product.id === productId ? { ...line, adjustment: normalizedAdjustment } : line
+      )
+    );
   }
 
   function changeQty(productId: string, delta: number) {
@@ -185,7 +219,7 @@ export function PosView({
   );
 
   const total = useMemo(
-    () => cart.reduce((sum, l) => sum + effectivePrice(l.product) * l.qty, 0),
+    () => cart.reduce((sum, l) => sum + cartUnitPrice(l) * l.qty, 0),
     [cart]
   );
   const totalQty = useMemo(() => cart.reduce((sum, l) => sum + l.qty, 0), [cart]);
@@ -281,7 +315,11 @@ export function PosView({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: cart.map((l) => ({ productId: l.product.id, qty: l.qty })),
+        items: cart.map((l) => ({
+          productId: l.product.id,
+          qty: l.qty,
+          unitPrice: cartUnitPrice(l),
+        })),
         paymentMethod: standaloneCustomMethod ? "CUSTOM" : method,
         customerId: resolvedCustomerId,
         employeeId: employeeId || undefined,
@@ -304,7 +342,7 @@ export function PosView({
       return;
     }
     const completedSale: LastSale = {
-      items: cart.map((l) => ({ name: l.product.name, qty: l.qty, price: effectivePrice(l.product) })),
+      items: cart.map((l) => ({ name: l.product.name, qty: l.qty, price: cartUnitPrice(l) })),
       total,
       method: standaloneCustomMethod ?? method,
       customerName: customerMode === "new" ? newCustomerName.trim() || null : selectedCustomer?.name ?? null,
@@ -339,6 +377,8 @@ export function PosView({
     router.refresh();
     const params = new URLSearchParams();
     if (query) params.set("q", query);
+    if (status !== "all") params.set("status", status);
+    if (categoryId) params.set("categoryId", categoryId);
     const refreshed = await fetch(`/api/products?${params.toString()}`);
     const refreshedData = await refreshed.json();
     setProducts(refreshedData.products ?? []);
@@ -487,36 +527,114 @@ export function PosView({
             Mahsulot qo&apos;shish uchun ro&apos;yxatdan tanlang
           </p>
         ) : (
-          <div className="mt-3 flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
+          <div className="mt-3 flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
             {cart.map((l) => (
-              <div key={l.product.id} className="flex items-center gap-2 rounded-lg bg-surface-muted p-2">
-                <ProductImage
-                  src={l.product.imageUrl}
-                  name={l.product.name}
-                  className="h-9 w-9 shrink-0 rounded-md text-xs"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{l.product.name}</p>
-                  <p className="text-xs text-muted">{formatSom(effectivePrice(l.product))}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => changeQty(l.product.id, -1)}
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-surface text-foreground"
-                  >
-                    <Minus size={12} />
+              <div key={l.product.id} className="rounded-lg bg-surface-muted p-2">
+                <div className="flex items-center gap-2">
+                  <ProductImage
+                    src={l.product.imageUrl}
+                    name={l.product.name}
+                    className="h-9 w-9 shrink-0 rounded-md text-xs"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{l.product.name}</p>
+                    <p className="text-xs text-muted">
+                      {formatSom(cartUnitPrice(l))}
+                      {l.adjustment && (
+                        <span className="ml-1 line-through">{formatSom(effectivePrice(l.product))}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => changeQty(l.product.id, -1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-surface text-foreground"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span className="w-5 text-center text-sm font-semibold">{l.qty}</span>
+                    <button
+                      onClick={() => changeQty(l.product.id, 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-surface text-foreground"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                  <button onClick={() => removeLine(l.product.id)} className="text-muted hover:text-danger">
+                    <Trash2 size={14} />
                   </button>
-                  <span className="w-5 text-center text-sm font-semibold">{l.qty}</span>
-                  <button
-                    onClick={() => changeQty(l.product.id, 1)}
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-surface text-foreground"
-                  >
-                    <Plus size={12} />
-                  </button>
                 </div>
-                <button onClick={() => removeLine(l.product.id)} className="text-muted hover:text-danger">
-                  <Trash2 size={14} />
-                </button>
+                {l.adjustment ? (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <select
+                      aria-label={`${l.product.name} narx o'zgarishi`}
+                      value={l.adjustment.direction}
+                      onChange={(e) =>
+                        updatePriceAdjustment(l.product.id, {
+                          ...l.adjustment!,
+                          direction: e.target.value as PriceAdjustment["direction"],
+                        })
+                      }
+                      className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 text-xs"
+                    >
+                      <option value="discount">Chegirma</option>
+                      <option value="increase">Ustama</option>
+                    </select>
+                    <select
+                      aria-label={`${l.product.name} o'zgarish birligi`}
+                      value={l.adjustment.unit}
+                      onChange={(e) =>
+                        updatePriceAdjustment(l.product.id, {
+                          ...l.adjustment!,
+                          unit: e.target.value as PriceAdjustment["unit"],
+                        })
+                      }
+                      className="h-8 rounded-md border border-border bg-background px-1.5 text-xs"
+                    >
+                      <option value="percent">%</option>
+                      <option value="amount">UZS</option>
+                    </select>
+                    <input
+                      aria-label={`${l.product.name} ${l.adjustment.direction === "discount" ? "chegirma" : "ustama"} miqdori`}
+                      type="number"
+                      min="0"
+                      max={l.adjustment.direction === "discount" && l.adjustment.unit === "percent" ? 100 : undefined}
+                      step={l.adjustment.unit === "percent" ? "0.1" : "1000"}
+                      value={l.adjustment.value}
+                      onChange={(e) =>
+                        updatePriceAdjustment(l.product.id, {
+                          ...l.adjustment!,
+                          value: Math.max(0, Number(e.target.value) || 0),
+                        })
+                      }
+                      className="h-8 w-24 rounded-md border border-border bg-background px-2 text-right text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updatePriceAdjustment(l.product.id, null)}
+                      className="px-1 text-xs text-muted hover:text-danger"
+                    >
+                      Bekor
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1.5 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updatePriceAdjustment(l.product.id, { direction: "discount", unit: "percent", value: 0 })}
+                      className="text-xs font-medium text-accent hover:underline"
+                    >
+                      Chegirma
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updatePriceAdjustment(l.product.id, { direction: "increase", unit: "percent", value: 0 })}
+                      className="text-xs font-medium text-accent hover:underline"
+                    >
+                      Ustama
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

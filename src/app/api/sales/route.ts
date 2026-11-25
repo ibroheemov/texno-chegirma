@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-type CartItem = { productId: string; qty: number };
+type CartItem = { productId: string; qty: number; unitPrice?: number };
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -82,19 +82,24 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (item.unitPrice !== undefined && (!Number.isFinite(item.unitPrice) || item.unitPrice < 0)) {
+      return NextResponse.json({ error: "Mahsulot narxi noto'g'ri" }, { status: 400 });
+    }
   }
 
   let total = 0;
   let profit = 0;
   const saleItemsData = items.map((item) => {
     const product = productMap.get(item.productId)!;
-    total += product.price * item.qty;
-    profit += (product.price - product.costPrice) * item.qty;
+    const unitPrice =
+      item.unitPrice ?? (product.onSale && product.salePrice ? product.salePrice : product.price);
+    total += unitPrice * item.qty;
+    profit += (unitPrice - product.costPrice) * item.qty;
     return {
       productId: product.id,
       name: product.name,
       qty: item.qty,
-      price: product.price,
+      price: unitPrice,
       costPrice: product.costPrice,
     };
   });
