@@ -1,0 +1,303 @@
+/* New design -> Ombor (product cards). Scoped under .refine-ds; uses only Refine tokens. */
+
+.refine-ds .om-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--sp-4);
+}
+
+.refine-ds .om-kpi {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.refine-ds .om-kpi-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.refine-ds .om-kpi .kpi-val {
+  white-space: normal;
+  font-size: var(--fs-3xl);
+}
+
+.refine-ds .om-card-wrap {
+  overflow: visible;
+}
+
+.refine-ds .om-tabs {
+  padding: 0 var(--sp-6);
+}
+
+.refine-ds .om-search {
+  width: 300px;
+  max-width: 100%;
+}
+
+.refine-ds .om-sort {
+  width: 250px;
+  max-width: 100%;
+}
+
+.refine-ds .om-sort select {
+  padding-right: var(--sp-5);
+}
+
+.refine-ds .om-sort .ic {
+  margin-left: calc(-1 * var(--sp-6));
+  pointer-events: none;
+}
+
+.refine-ds .btn.om-active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.refine-ds .om-spin {
+  animation: rf-spin 0.7s linear infinite;
+}
+
+.refine-ds .om-error {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-6) 0;
+  color: var(--danger-text);
+  font-size: var(--fs-sm);
+}
+
+/* ---- card grid ---- */
+.refine-ds .om-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-6);
+}
+
+.refine-ds .om-grid.is-compact {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--sp-3);
+}
+
+.refine-ds .om-product {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  box-shadow: var(--sh-xs);
+}
+
+.refine-ds .om-product:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.refine-ds .om-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-md);
+  object-fit: cover;
+  background: var(--bg-subtle);
+  color: var(--text-3);
+}
+
+.refine-ds .om-grid.is-compact .om-thumb {
+  aspect-ratio: 16 / 10;
+}
+
+.refine-ds .om-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refine-ds .om-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+}
+
+.refine-ds .om-grid.is-compact .om-name {
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .om-sku {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.refine-ds .om-cat {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.refine-ds .om-grid.is-compact .om-cat {
+  display: none;
+}
+
+.refine-ds .om-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.refine-ds .om-price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-top: auto;
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+}
+
+.refine-ds .om-price-sale {
+  color: var(--danger-text);
+}
+
+.refine-ds .om-price-old {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  text-decoration: line-through;
+}
+
+.refine-ds .om-menu-anchor {
+  position: absolute;
+  z-index: 3;
+  top: var(--sp-4);
+  right: var(--sp-4);
+}
+
+.refine-ds .om-menu-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  box-shadow: var(--sh-xs);
+  cursor: pointer;
+}
+
+.refine-ds .om-menu-btn:hover {
+  border-color: var(--primary-border);
+  color: var(--primary-text);
+}
+
+.refine-ds .om-menu {
+  position: absolute;
+  top: calc(100% + var(--sp-1));
+  right: 0;
+  z-index: 10;
+  width: 200px;
+  min-width: 0;
+}
+
+/* ---- drawer + confirm ---- */
+.refine-ds .om-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: var(--overlay);
+}
+
+/* Old design modals and the lightbox use z-50, so the drawer must stay below them. */
+.refine-ds .om-overlay-drawer {
+  z-index: 40;
+}
+
+.refine-ds .om-overlay-modal {
+  z-index: 45;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+}
+
+.refine-ds .om-drawer-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refine-ds .om-drawer-image {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: transparent;
+  cursor: default;
+}
+
+.refine-ds .om-drawer-image.is-zoomable {
+  cursor: zoom-in;
+}
+
+.refine-ds .om-drawer-img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-lg);
+  object-fit: cover;
+  background: var(--bg-subtle);
+  color: var(--text-3);
+}
+
+.refine-ds .om-drawer-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.refine-ds .om-drawer-panels .panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refine-ds .om-panel-val {
+  font-size: var(--fs-xl);
+}
+
+.refine-ds .om-dl {
+  grid-template-columns: 150px 1fr;
+}
+
+.refine-ds .om-grow {
+  flex: 1;
+}
+
+.refine-ds .om-confirm-body {
+  align-items: center;
+  gap: var(--sp-2);
+  padding-top: 28px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .refine-ds .om-tabs {
+    padding: 0 var(--sp-4);
+  }
+
+  .refine-ds .om-grid {
+    padding: var(--sp-4);
+  }
+
+  .refine-ds .drawer {
+    width: 100%;
+  }
+}

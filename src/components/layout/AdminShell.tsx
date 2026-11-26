@@ -24,7 +24,8 @@ export function AdminShell({
   const pathname = usePathname();
   const page = pageTitles[pathname];
 
-  if (pathname === "/admin/yangi-dizayn") {
+  // New design pages bring their own layout (Kassa: Figma rail, others: Refine shell).
+  if (pathname.startsWith("/admin/yangi-dizayn")) {
     return <>{children}</>;
   }
 

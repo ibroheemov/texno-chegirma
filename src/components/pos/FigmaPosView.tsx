@@ -9,7 +9,7 @@ import { Banknote, Check, ChevronDown, Clock, CreditCard, Plus, ScanBarcode, Tag
 import type { ReceiptSale, ReceiptSettings } from "@/lib/receipt";
 import { formatSom } from "@/lib/format";
 import type { CartLine, PaymentMethod, PriceAdjustment, ProductWithCategory } from "./PosView";
-import "./refine-tokens.css";
+import "../refine/refine-tokens.css";
 import "./FigmaPosView.css";
 
 const iconFiles = [
@@ -53,7 +53,7 @@ const iconFiles = [
 
 const navLinks = [
   { href: "/admin", label: "Kassa", icon: 0 },
-  { href: "/admin/ombor", label: "Ombor", icon: 1 },
+  { href: "/admin/yangi-dizayn/ombor", label: "Ombor", icon: 1 },
   { href: "/admin/mijozlar", label: "Mijozlar", icon: 2 },
   { href: "/admin/moliya", label: "Moliya", icon: 3 },
   { href: "/admin/nasiya", label: "Nasiya", icon: 4 },

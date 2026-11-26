@@ -1,10 +1,13 @@
-/* Refine Dashboard Design System tokens, scoped to the New design Kassa (.figma-pos).
+/* Refine Dashboard Design System tokens, scoped to the New design (.figma-pos for Kassa, .refine-ds for
+   the shell and pages, .refine-legacy for re-themed Old design components such as the Ombor modals).
    Source: "Refine Dashboard Design System" (claude.ai Design artifact). Keep names identical to the
    design system so other New design sections can reuse this file. Scoped (not :root) because
    globals.css already defines --surface/--accent/--danger/... for the Old design with other values.
    Dark values live under .figma-pos.theme-dark; nothing toggles that class yet. */
 
-.figma-pos {
+.figma-pos,
+.refine-ds,
+.refine-legacy {
   /* ---------- Color: surfaces ---------- */
   --bg-app: #F4F6FA;          /* primary background (page) */
   --bg-subtle: #EDF0F5;       /* secondary background (wells, track) */
@@ -102,7 +105,9 @@
   --ease-out: cubic-bezier(.16, 1, .3, 1);
 }
 
-.figma-pos.theme-dark {
+.figma-pos.theme-dark,
+.refine-ds.theme-dark,
+.refine-legacy.theme-dark {
   --bg-app: #0A0F1D; --bg-subtle: #0F1628; --bg-sidebar: #070B16; --bg-sidebar-2: #111A30;
   --bg-header: #0D1324; --surface: #111A2D; --surface-2: #162036; --surface-raised: #18223A;
   --field: #172137; --field-hover: #1C2741; --overlay: rgba(2, 5, 12, .66);
@@ -127,4 +132,22 @@
   --sh-xs: 0 1px 2px rgba(0,0,0,.3); --sh-sm: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.03);
   --sh-md: 0 8px 20px -6px rgba(0,0,0,.5); --sh-lg: 0 20px 44px -12px rgba(0,0,0,.6);
   --sh-xl: 0 32px 80px -16px rgba(0,0,0,.7); --sh-primary: 0 8px 20px -6px rgba(76,125,255,.55);
+}
+
+/* Bridge: Old design components (Tailwind) read --accent, --border, --surface-muted ... Map those names to the
+   Refine tokens so they render in the New design palette. --accent differs in meaning (Old: the one action
+   colour = green, Refine: secondary orange), so inside .refine-legacy it points at --primary. */
+.refine-legacy {
+  --background: var(--bg-app);
+  --surface-muted: var(--surface-2);
+  --foreground: var(--text-strong);
+  --muted: var(--text-3);
+  --border: var(--line);
+  --accent: var(--primary);
+  --accent-foreground: var(--on-primary);
+  --accent-soft: var(--primary-soft);
+  --radius: var(--r-xl);
+  --shadow-card: var(--sh-sm);
+  font-family: var(--font-sans);
+  color: var(--text);
 }

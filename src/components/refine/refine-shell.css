@@ -1,0 +1,71 @@
+/* Shell glue for the New design (Refine) pages. Everything is scoped under .refine-ds. */
+
+.refine-ds.rf-root {
+  min-height: 100vh;
+  background: var(--bg-app);
+}
+
+.refine-ds .rf-shell {
+  min-height: 100vh;
+  flex-wrap: nowrap;
+}
+
+.refine-ds .rf-shell > .sb {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.refine-ds .rf-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refine-ds .rf-old-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-3);
+  color: var(--sb-accent);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+}
+
+.refine-ds .rf-old-link:hover {
+  color: var(--sb-text-strong);
+}
+
+.refine-ds .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+@media (max-width: 900px) {
+  .refine-ds .rf-hide-m {
+    display: none;
+  }
+
+  .refine-ds .rf-shell {
+    flex-wrap: wrap;
+  }
+
+  .refine-ds .rf-shell > .sb {
+    position: static;
+    width: 100%;
+    flex-basis: 100%;
+    height: auto;
+  }
+
+  .refine-ds .content {
+    padding: var(--sp-4);
+  }
+
+  .refine-ds .topbar {
+    padding: var(--sp-3) var(--sp-4);
+  }
+}
