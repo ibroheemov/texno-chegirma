@@ -36,6 +36,9 @@ type StoreData = {
   autoPrintReceipt: boolean;
   receiptFooter: string | null;
   telegramUsername: string | null;
+  instagramUsername: string | null;
+  telegramBotUsername: string | null;
+  telegramChannelUsername: string | null;
   telegramBotToken: string | null;
   telegramChatId: string | null;
   customPaymentMethods: string[] | null;
@@ -603,6 +606,9 @@ export function ReceiptSettingsCard({ store }: { store: StoreData }) {
   const [logoUrl, setLogoUrl] = useState(store.logoUrl ?? "");
   const [footer, setFooter] = useState(store.receiptFooter ?? "");
   const [telegramUsername, setTelegramUsername] = useState(store.telegramUsername ?? "");
+  const [instagramUsername, setInstagramUsername] = useState(store.instagramUsername ?? "");
+  const [telegramBotUsername, setTelegramBotUsername] = useState(store.telegramBotUsername ?? "");
+  const [telegramChannelUsername, setTelegramChannelUsername] = useState(store.telegramChannelUsername ?? "");
   const [autoPrint, setAutoPrint] = useState(store.autoPrintReceipt);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -623,7 +629,15 @@ export function ReceiptSettingsCard({ store }: { store: StoreData }) {
     setSaving(true);
     setError("");
     try {
-      await patchStore({ logoUrl, receiptFooter: footer, telegramUsername, autoPrintReceipt: autoPrint });
+      await patchStore({
+        logoUrl,
+        receiptFooter: footer,
+        telegramUsername,
+        instagramUsername,
+        telegramBotUsername,
+        telegramChannelUsername,
+        autoPrintReceipt: autoPrint,
+      });
       setDone(true);
       router.refresh();
       setTimeout(() => setDone(false), 1500);
@@ -669,6 +683,15 @@ export function ReceiptSettingsCard({ store }: { store: StoreData }) {
       <div className="mt-4 flex flex-col gap-3 sm:max-w-sm">
         <Field label="Telegram username (chekda)">
           <Input value={telegramUsername} onChange={(e) => setTelegramUsername(e.target.value)} placeholder="@dokonim" />
+        </Field>
+        <Field label="Instagram username (chekda)">
+          <Input value={instagramUsername} onChange={(e) => setInstagramUsername(e.target.value)} placeholder="@dokonim" />
+        </Field>
+        <Field label="Telegram bot username (chekda)">
+          <Input value={telegramBotUsername} onChange={(e) => setTelegramBotUsername(e.target.value)} placeholder="@dokonim_bot" />
+        </Field>
+        <Field label="Telegram kanal username (chekda)">
+          <Input value={telegramChannelUsername} onChange={(e) => setTelegramChannelUsername(e.target.value)} placeholder="@dokonim" />
         </Field>
         <Field label="Chek pastki yozuvi">
           <Input value={footer} onChange={(e) => setFooter(e.target.value)} placeholder="Xaridingiz uchun rahmat!" />

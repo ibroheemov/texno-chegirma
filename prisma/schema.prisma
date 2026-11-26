@@ -47,49 +47,52 @@ enum OrderStatus {
 }
 
 model Store {
-  id        String   @id @default(cuid())
-  name      String
-  currency  String   @default("so'm")
-  phone     String?
-  address   String?
-  logoUrl   String?
-  usdRate   Int?
-  showDebtInUsdOnly   Boolean @default(false)
-  enableMixedPayment  Boolean @default(true)
-  notifyNewOrders     Boolean @default(true)
-  soundAlert          Boolean @default(true)
-  autoPrintReceipt    Boolean @default(false)
-  receiptFooter       String?
-  telegramUsername    String?
-  telegramBotToken    String?
-  telegramChatId      String?
-  publicUrl           String?
-  fxChannelUsername   String?
-  fxKeyword           String?
-  fxNumberIndex       Int?
+  id                      String   @id @default(cuid())
+  name                    String
+  currency                String   @default("so'm")
+  phone                   String?
+  address                 String?
+  logoUrl                 String?
+  usdRate                 Int?
+  showDebtInUsdOnly       Boolean  @default(false)
+  enableMixedPayment      Boolean  @default(true)
+  notifyNewOrders         Boolean  @default(true)
+  soundAlert              Boolean  @default(true)
+  autoPrintReceipt        Boolean  @default(false)
+  receiptFooter           String?
+  telegramUsername        String?
+  instagramUsername       String?
+  telegramBotUsername     String?
+  telegramChannelUsername String?
+  telegramBotToken        String?
+  telegramChatId          String?
+  publicUrl               String?
+  fxChannelUsername       String?
+  fxKeyword               String?
+  fxNumberIndex           Int?
   // Store's physical location — shown to customers via the bot's "📍 Manzilimiz"
   // reply-keyboard button (sent as a native Telegram location, not just text).
-  locationLat         Float?
-  locationLng         Float?
-  customPaymentMethods Json?
-  deferredPaymentMethods Json?
-  createdAt DateTime @default(now())
+  locationLat             Float?
+  locationLng             Float?
+  customPaymentMethods    Json?
+  deferredPaymentMethods  Json?
+  createdAt               DateTime @default(now())
 
-  users      User[]
-  categories Category[]
-  products   Product[]
-  customers  Customer[]
-  sales      Sale[]
-  ledger     LedgerEntry[]
-  employees  Employee[]
-  orders     OnlineOrder[]
-  suppliers  Supplier[]
-  settlements ThirdPartySettlement[]
-  receipts   GoodsReceipt[]
-  handovers  CashHandover[]
+  users            User[]
+  categories       Category[]
+  products         Product[]
+  customers        Customer[]
+  sales            Sale[]
+  ledger           LedgerEntry[]
+  employees        Employee[]
+  orders           OnlineOrder[]
+  suppliers        Supplier[]
+  settlements      ThirdPartySettlement[]
+  receipts         GoodsReceipt[]
+  handovers        CashHandover[]
   telegramSessions TelegramSession[]
-  salaryPayments SalaryPayment[]
-  layawayOrders LayawayOrder[]
+  salaryPayments   SalaryPayment[]
+  layawayOrders    LayawayOrder[]
 }
 
 // Per-chat state for the Telegram shopping bot. A bot webhook handles one
@@ -115,28 +118,28 @@ model TelegramSession {
 }
 
 model OnlineOrder {
-  id              String        @id @default(cuid())
+  id                String        @id @default(cuid())
   // Human-friendly sequential order number (1, 2, 3...) shown in the #ID column.
-  number          Int           @default(autoincrement())
-  storeId         String
-  store           Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  customerName    String
-  customerPhone   String
-  customerAddress String?
-  items           Json
-  total           Int
-  paymentMethod   PaymentMethod @default(CASH)
+  number            Int           @default(autoincrement())
+  storeId           String
+  store             Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerName      String
+  customerPhone     String
+  customerAddress   String?
+  items             Json
+  total             Int
+  paymentMethod     PaymentMethod @default(CASH)
   // Set only when paymentMethod is CUSTOM via "Muddatli to'lov" — the
   // installment plan length (3, 6 or 12 months) the customer picked at checkout.
   installmentMonths Int?
-  status          OrderStatus   @default(PENDING)
-  source          String        @default("ONLINE")
-  saleId          String?       @unique
-  sale            Sale?         @relation(fields: [saleId], references: [id])
-  courierId       String?
-  courier         Employee?     @relation(fields: [courierId], references: [id])
-  deliveryDate    DateTime?
-  createdAt       DateTime      @default(now())
+  status            OrderStatus   @default(PENDING)
+  source            String        @default("ONLINE")
+  saleId            String?       @unique
+  sale              Sale?         @relation(fields: [saleId], references: [id])
+  courierId         String?
+  courier           Employee?     @relation(fields: [courierId], references: [id])
+  deliveryDate      DateTime?
+  createdAt         DateTime      @default(now())
 
   @@index([storeId, status])
 }
@@ -163,31 +166,31 @@ model Category {
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  storeId     String
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id])
-  name        String
-  sku         String
-  price       Int
-  costPrice   Int      @default(0)
-  stock       Int      @default(0)
-  lowStockAt  Int      @default(3)
-  imageUrl    String?
-  images      Json?
-  unit         String   @default("dona")
+  id           String    @id @default(cuid())
+  storeId      String
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id])
+  name         String
+  sku          String
+  price        Int
+  costPrice    Int       @default(0)
+  stock        Int       @default(0)
+  lowStockAt   Int       @default(3)
+  imageUrl     String?
+  images       Json?
+  unit         String    @default("dona")
   barcodePrice Int?
-  onSale       Boolean  @default(false)
+  onSale       Boolean   @default(false)
   salePrice    Int?
   // Set for products priced in dollars: the USD/UZS rate their so'm prices
   // were last calculated at. Prices are rescaled whenever the CBU rate moves.
   usdRate      Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  saleItems SaleItem[]
-  receipts  GoodsReceipt[]
+  saleItems     SaleItem[]
+  receipts      GoodsReceipt[]
   layawayOrders LayawayOrder[]
 
   @@unique([storeId, sku])
@@ -195,19 +198,19 @@ model Product {
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  storeId   String
-  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  name      String
-  phone     String?
-  address   String?
-  note      String?
+  id             String   @id @default(cuid())
+  storeId        String
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name           String
+  phone          String?
+  address        String?
+  note           String?
   // Set when the customer registered through the Telegram bot.
   telegramChatId String?
-  createdAt DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  sales  Sale[]
-  debts  CreditLedger[]
+  sales         Sale[]
+  debts         CreditLedger[]
   layawayOrders LayawayOrder[]
 
   @@unique([storeId, telegramChatId])
@@ -215,29 +218,32 @@ model Customer {
 }
 
 model Sale {
-  id            String        @id @default(cuid())
-  storeId       String
-  store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  customerId    String?
-  customer      Customer?     @relation(fields: [customerId], references: [id])
-  soldById      String?
-  soldBy        Employee?     @relation(fields: [soldById], references: [id], onDelete: SetNull)
-  total         Int
-  paymentMethod PaymentMethod
-  cashAmount    Int           @default(0)
-  cardAmount    Int           @default(0)
-  creditAmount  Int           @default(0)
-  customAmounts Json?
-  profit        Int           @default(0)
-  canceled      Boolean       @default(false)
-  canceledAt    DateTime?
-  createdAt     DateTime      @default(now())
+  id             String        @id @default(cuid())
+  storeId        String
+  store          Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  soldById       String?
+  soldBy         Employee?     @relation(fields: [soldById], references: [id], onDelete: SetNull)
+  total          Int
+  discountAmount Int           @default(0)
+  paymentMethod  PaymentMethod
+  cashAmount     Int           @default(0)
+  cardAmount     Int           @default(0)
+  creditAmount   Int           @default(0)
+  customAmounts  Json?
+  profit         Int           @default(0)
+  canceled       Boolean       @default(false)
+  canceledAt     DateTime?
+  createdAt      DateTime      @default(now())
+  layawayOrderId String?       @unique
+  layawayOrder   LayawayOrder? @relation(fields: [layawayOrderId], references: [id], onDelete: SetNull)
 
-  items       SaleItem[]
-  creditDebt  CreditLedger?
-  ledgerEntry LedgerEntry?
+  items         SaleItem[]
+  creditDebt    CreditLedger?
+  ledgerEntry   LedgerEntry?
   deliveryOrder OnlineOrder?
-  settlements ThirdPartySettlement[]
+  settlements   ThirdPartySettlement[]
 
   @@index([storeId, createdAt])
 }
@@ -248,19 +254,19 @@ model Sale {
 // working days). The sale's revenue/profit are recognized immediately as usual;
 // this amount only joins the Kassa cash/card balance once marked `received`.
 model ThirdPartySettlement {
-  id             String        @id @default(cuid())
+  id             String         @id @default(cuid())
   storeId        String
-  store          Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store          Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   saleId         String
-  sale           Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sale           Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
   methodName     String
   amount         Int
   expectedDate   DateTime
   note           String?
-  received       Boolean       @default(false)
+  received       Boolean        @default(false)
   receivedAt     DateTime?
   receivedMethod PaymentMethod?
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime       @default(now())
 
   @@index([storeId, received])
   @@index([saleId])
@@ -279,16 +285,16 @@ model SaleItem {
 }
 
 model CreditLedger {
-  id          String    @id @default(cuid())
+  id          String          @id @default(cuid())
   storeId     String
-  saleId      String?   @unique
-  sale        Sale?     @relation(fields: [saleId], references: [id])
+  saleId      String?         @unique
+  sale        Sale?           @relation(fields: [saleId], references: [id])
   customerId  String
-  customer    Customer  @relation(fields: [customerId], references: [id])
+  customer    Customer        @relation(fields: [customerId], references: [id])
   totalAmount Int
-  paidAmount  Int       @default(0)
+  paidAmount  Int             @default(0)
   dueDate     DateTime
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime        @default(now())
   payments    CreditPayment[]
 
   @@index([storeId, dueDate])
@@ -306,17 +312,17 @@ model CreditPayment {
 }
 
 model LedgerEntry {
-  id          String          @id @default(cuid())
-  storeId     String
-  store       Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  saleId      String?         @unique
-  sale        Sale?           @relation(fields: [saleId], references: [id])
-  direction   LedgerDirection
-  amount      Int
-  method      PaymentMethod   @default(CASH)
-  category    String?
-  note        String?
-  createdAt   DateTime        @default(now())
+  id        String          @id @default(cuid())
+  storeId   String
+  store     Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  saleId    String?         @unique
+  sale      Sale?           @relation(fields: [saleId], references: [id])
+  direction LedgerDirection
+  amount    Int
+  method    PaymentMethod   @default(CASH)
+  category  String?
+  note      String?
+  createdAt DateTime        @default(now())
 
   @@index([storeId, createdAt])
 }
@@ -328,19 +334,19 @@ enum HandoverStatus {
 }
 
 model CashHandover {
-  id            String         @id @default(cuid())
-  storeId       String
-  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  handedOverBy  String
-  receivedBy    String
-  note          String?
-  cashAmount    Int            @default(0)
-  cardAmount    Int            @default(0)
-  creditAmount  Int            @default(0)
-  totalAmount   Int            @default(0)
-  status        HandoverStatus @default(PENDING)
-  createdAt     DateTime       @default(now())
-  decidedAt     DateTime?
+  id           String         @id @default(cuid())
+  storeId      String
+  store        Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  handedOverBy String
+  receivedBy   String
+  note         String?
+  cashAmount   Int            @default(0)
+  cardAmount   Int            @default(0)
+  creditAmount Int            @default(0)
+  totalAmount  Int            @default(0)
+  status       HandoverStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  decidedAt    DateTime?
 
   @@index([storeId, status])
 }
@@ -449,6 +455,7 @@ model LayawayOrder {
   createdAt   DateTime      @default(now())
 
   payments LayawayPayment[]
+  sale     Sale?
 
   @@index([storeId, status])
   @@index([storeId, customerId])
@@ -467,46 +474,46 @@ model LayawayPayment {
 }
 
 model Employee {
-  id        String   @id @default(cuid())
-  storeId   String
-  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  name      String
-  phone     String?
-  position  String?
-  salary    Int      @default(0)
-  salaryType SalaryType @default(MONTHLY)
-  login       String?
-  passwordHash String?
-  isCourier   Boolean  @default(false)
-  photoUrl    String?
-  faceDescriptor String?
+  id                  String     @id @default(cuid())
+  storeId             String
+  store               Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name                String
+  phone               String?
+  position            String?
+  salary              Int        @default(0)
+  salaryType          SalaryType @default(MONTHLY)
+  login               String?
+  passwordHash        String?
+  isCourier           Boolean    @default(false)
+  photoUrl            String?
+  faceDescriptor      String?
   allowedLocationName String?
   allowedLat          Float?
   allowedLng          Float?
-  allowedRadius       Int?    @default(100)
+  allowedRadius       Int?       @default(100)
   workStartTime       String?
   workEndTime         String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  active              Boolean    @default(true)
+  createdAt           DateTime   @default(now())
 
-  attendance Attendance[]
-  deliveries OnlineOrder[]
-  sales      Sale[]
+  attendance     Attendance[]
+  deliveries     OnlineOrder[]
+  sales          Sale[]
   creditPayments CreditPayment[]
   salaryPayments SalaryPayment[]
 }
 
 model Attendance {
-  id         String           @id @default(cuid())
-  employeeId String
-  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date       DateTime
-  status     AttendanceStatus
-  checkIn    DateTime?
-  checkOut   DateTime?
-  checkInLat Float?
-  checkInLng Float?
-  withinRange Boolean?
+  id           String           @id @default(cuid())
+  employeeId   String
+  employee     Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date         DateTime
+  status       AttendanceStatus
+  checkIn      DateTime?
+  checkOut     DateTime?
+  checkInLat   Float?
+  checkInLng   Float?
+  withinRange  Boolean?
   faceVerified Boolean?
 
   @@unique([employeeId, date])

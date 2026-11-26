@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
   const cashAmount: number = body.cashAmount ?? 0;
   const cardAmount: number = body.cardAmount ?? 0;
   const creditAmount: number = body.creditAmount ?? 0;
+  const discountAmount: number = body.discountAmount ?? 0;
   const customAmountsInput: Record<string, number> =
     body.customAmounts && typeof body.customAmounts === "object" ? body.customAmounts : {};
   const customAmounts = Object.fromEntries(
@@ -103,6 +104,11 @@ export async function POST(req: NextRequest) {
       costPrice: product.costPrice,
     };
   });
+  if (!Number.isSafeInteger(discountAmount) || discountAmount < 0 || discountAmount > total) {
+    return NextResponse.json({ error: "Chegirma summasi noto'g'ri" }, { status: 400 });
+  }
+  total -= discountAmount;
+  profit -= discountAmount;
 
   const sale = await prisma.$transaction(async (tx) => {
     const created = await tx.sale.create({
@@ -111,6 +117,7 @@ export async function POST(req: NextRequest) {
         customerId,
         soldById: employeeId,
         total,
+        discountAmount,
         profit,
         paymentMethod,
         cashAmount,

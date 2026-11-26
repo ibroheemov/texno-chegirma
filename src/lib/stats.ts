@@ -9,6 +9,7 @@ import { formatDate } from "./format";
 // double-count it against profit.
 export const SUPPLIER_PAYMENT_CATEGORY = "Tovar xaridi";
 export const SALARY_CATEGORY = "Oylik";
+export const LAYAWAY_PAYMENT_CATEGORY = "Xaqdorlik to'lovi";
 
 // Ledger entries tagged with this category are the cash reversal created
 // when a sale is canceled (money handed back to the customer). The original
@@ -185,20 +186,29 @@ export function moliyaPeriodStart(period: string): Date | null {
 
 export async function getFinanceReport(storeId: string, period: string) {
   const start = moliyaPeriodStart(period);
-  const end = new Date();
 
   const entries = await prisma.ledgerEntry.findMany({
     where: { storeId, ...(start ? { createdAt: { gte: start } } : {}) },
     orderBy: { createdAt: "asc" },
   });
 
-  const sales = await prisma.sale.findMany({
-    where: { storeId, canceled: false, ...(start ? { createdAt: { gte: start } } : {}) },
+  const allSales = await prisma.sale.findMany({
+    where: {
+      storeId,
+      canceled: false,
+      ...(start ? { createdAt: { gte: start } } : {}),
+    },
     include: { items: true },
   });
+  const sales = allSales.filter((sale) => sale.layawayOrderId === null);
 
-  const revenue = sales.reduce((sum, s) => sum + s.total, 0);
-  const cogs = sales.reduce(
+  const layawayEntries = entries.filter((entry) => entry.category === LAYAWAY_PAYMENT_CATEGORY);
+  const layawayRevenue = layawayEntries.reduce(
+    (sum, entry) => sum + (entry.direction === "IN" ? entry.amount : -entry.amount),
+    0
+  );
+  const revenue = sales.reduce((sum, s) => sum + s.total, layawayRevenue);
+  const cogs = allSales.reduce(
     (sum, s) => sum + s.items.reduce((a, i) => a + i.costPrice * i.qty, 0),
     0
   );
@@ -207,7 +217,8 @@ export async function getFinanceReport(storeId: string, period: string) {
     (e) =>
       e.direction === "OUT" &&
       e.category !== SUPPLIER_PAYMENT_CATEGORY &&
-      e.category !== SALE_CANCEL_CATEGORY
+      e.category !== SALE_CANCEL_CATEGORY &&
+      e.category !== LAYAWAY_PAYMENT_CATEGORY
   );
   const expense = expenseEntries.reduce((sum, e) => sum + e.amount, 0);
   const netProfit = revenue - cogs - expense;
@@ -243,6 +254,12 @@ export async function getFinanceReport(storeId: string, period: string) {
     const key = isoDate(s.createdAt);
     const d = dayMap.get(key) ?? { revenue: 0, expense: 0 };
     d.revenue += s.total;
+    dayMap.set(key, d);
+  }
+  for (const e of layawayEntries) {
+    const key = isoDate(e.createdAt);
+    const d = dayMap.get(key) ?? { revenue: 0, expense: 0 };
+    d.revenue += e.direction === "IN" ? e.amount : -e.amount;
     dayMap.set(key, d);
   }
   for (const e of expenseEntries) {

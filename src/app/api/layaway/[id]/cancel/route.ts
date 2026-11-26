@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { LAYAWAY_PAYMENT_CATEGORY } from "@/lib/stats";
 
 export async function POST(req: NextRequest, ctx: RouteContext<"/api/layaway/[id]/cancel">) {
   const session = await getSession();
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/layaway/[id
           direction: "OUT",
           amount: order.paidAmount,
           method: "CASH",
-          category: "Xaqdorlik to'lovi",
+          category: LAYAWAY_PAYMENT_CATEGORY,
           note: `Xaqdorlik bekor qilindi, qaytarildi: ${order.customer.name} — ${order.productName}`,
         },
       });

@@ -27,6 +27,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/layaway/[id
         await tx.sale.create({
           data: {
             storeId: session.storeId,
+            layawayOrderId: order.id,
             customerId: order.customerId,
             total: order.totalCost,
             paymentMethod: "CUSTOM",

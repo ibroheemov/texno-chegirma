@@ -282,8 +282,7 @@ export function ProductFormModal({
               <Keyboard size={16} className="text-muted" />
               <Input
                 value={sku}
-                onChange={(e) => setSku(e.target.value.replace(/\D/g, ""))}
-                inputMode="numeric"
+                onChange={(e) => setSku(e.target.value)}
                 placeholder="Masalan: 010102000226"
               />
             </div>

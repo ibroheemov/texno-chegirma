@@ -1,0 +1,130 @@
+/* Refine Dashboard Design System tokens, scoped to the New design Kassa (.figma-pos).
+   Source: "Refine Dashboard Design System" (claude.ai Design artifact). Keep names identical to the
+   design system so other New design sections can reuse this file. Scoped (not :root) because
+   globals.css already defines --surface/--accent/--danger/... for the Old design with other values.
+   Dark values live under .figma-pos.theme-dark; nothing toggles that class yet. */
+
+.figma-pos {
+  /* ---------- Color: surfaces ---------- */
+  --bg-app: #F4F6FA;          /* primary background (page) */
+  --bg-subtle: #EDF0F5;       /* secondary background (wells, track) */
+  --bg-sidebar: #0F1830;      /* navigation rail / sidebar */
+  --bg-sidebar-2: #16213D;    /* sidebar raised (search, footer card) */
+  --bg-header: #FFFFFF;       /* top bar */
+  --surface: #FFFFFF;         /* cards */
+  --surface-2: #F8F9FC;       /* nested panels inside cards */
+  --surface-raised: #FFFFFF;  /* popovers, menus, modals (with shadow) */
+  --field: #F4F6F9;           /* input ground */
+  --field-hover: #EEF1F5;
+  --overlay: rgba(11, 17, 33, .48);
+
+  /* ---------- Color: brand ---------- */
+  --primary: #2457E6;
+  --primary-hover: #1C47C8;
+  --primary-active: #173BA6;
+  --primary-soft: #EEF3FF;
+  --primary-soft-2: #DFE8FF;
+  --primary-border: #BFD0FA;
+  --primary-text: #2457E6;
+  --on-primary: #FFFFFF;
+  --accent: #E8822A;          /* secondary accent: highlights, second chart series */
+  --accent-soft: #FFF1E4;
+  --accent-text: #A14E08;
+
+  /* ---------- Color: status ---------- */
+  --success: #16A06A; --success-soft: #E6F6EE; --success-border: #B5E3CD; --success-text: #0D7A50;
+  --warning: #E0950F; --warning-soft: #FFF5DF; --warning-border: #F3D99C; --warning-text: #8F5508;
+  --danger:  #C93245; --danger-soft:  #FDEDEF; --danger-border:  #F6C3CA; --danger-text:  #C02B41; --danger-hover: #AE283B;
+  --info:    #0B72D9; --info-soft:    #E7F2FD; --info-border:    #B9D8F7; --info-text:    #0A62B8;
+  --neutral-soft: #EEF1F5; --neutral-text: #4A5468;
+
+  /* ---------- Color: text ---------- */
+  --text-strong: #0F1729;     /* headings, key numbers */
+  --text: #2E384B;            /* primary body */
+  --text-2: #546075;          /* secondary */
+  --text-3: #66718A;          /* muted, meta (4.6:1 on white) */
+  --text-placeholder: #8E97A8;
+  --text-disabled: #7E889C;
+  --text-faint: #A9B1BF;
+  --sb-text: #8D99B6;         /* sidebar idle */
+  --sb-text-strong: #E8EDF8;  /* sidebar active / headings */
+  --sb-accent: #9DB5FF;
+  --sb-line: rgba(255,255,255,.07);
+
+  /* ---------- Color: lines + states ---------- */
+  --line: #E3E7EE;
+  --line-soft: #EEF1F5;
+  --line-strong: #CFD6E1;
+  --hover: rgba(15, 23, 41, .045);
+  --active: rgba(15, 23, 41, .08);
+  --ring: 0 0 0 3px rgba(36, 87, 230, .24);
+  --ring-danger: 0 0 0 3px rgba(201, 50, 69, .2);
+  --ring-danger-btn: 0 0 0 3px rgba(201, 50, 69, .24); /* same ring as --ring, in danger red */
+
+  /* ---------- Color: data visualisation ---------- */
+  --c1: #2457E6; --c2: #E8822A; --c3: #12A189; --c4: #8B6CF0; --c5: #A9B4C6;
+  --c1-soft: #DFE8FF; --c2-soft: #FCE3CC;
+  --grid: #EDF0F5;
+
+  /* ---------- Typography ---------- */
+  --font-sans: var(--font-dm-sans), 'DM Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 18px;
+  --fs-2xl: 20px; --fs-3xl: 24px; --fs-4xl: 30px; --fs-5xl: 36px; --fs-6xl: 48px;
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+  --lh-tight: 1.15; --lh-snug: 1.3; --lh-normal: 1.5; --lh-relaxed: 1.65;
+  --tr-tighter: -0.035em; --tr-tight: -0.02em; --tr-normal: 0; --tr-wide: .08em;
+
+  /* ---------- Spacing (4px base) ---------- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+  --sp-8: 32px; --sp-10: 40px; --sp-12: 48px; --sp-16: 64px; --sp-20: 80px;
+
+  /* ---------- Radius ---------- */
+  --r-xs: 6px; --r-sm: 8px; --r-md: 10px; --r-lg: 12px; --r-xl: 16px; --r-2xl: 20px; --r-full: 999px;
+
+  /* ---------- Elevation ---------- */
+  --sh-xs: 0 1px 2px rgba(16, 24, 40, .05);
+  --sh-sm: 0 1px 2px rgba(16, 24, 40, .04), 0 2px 8px rgba(16, 24, 40, .045);
+  --sh-md: 0 6px 16px -4px rgba(16, 24, 40, .10), 0 2px 4px rgba(16, 24, 40, .04);
+  --sh-lg: 0 18px 40px -10px rgba(16, 24, 40, .18), 0 4px 10px rgba(16, 24, 40, .05);
+  --sh-xl: 0 32px 72px -16px rgba(16, 24, 40, .28), 0 6px 16px rgba(16, 24, 40, .06);
+  --sh-primary: 0 8px 18px -6px rgba(36, 87, 230, .45);
+
+  /* ---------- Sizes ---------- */
+  --ic-xs: 14px; --ic-sm: 16px; --ic-md: 18px; --ic-lg: 20px; --ic-xl: 24px;
+  --h-sm: 36px; --h-md: 44px; --h-lg: 52px;
+  --sidebar-w: 264px; --sidebar-w-collapsed: 76px; --header-h: 72px;
+  --container: 1440px;
+
+  /* ---------- Motion ---------- */
+  --dur-fast: 120ms; --dur: 180ms; --dur-slow: 260ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+}
+
+.figma-pos.theme-dark {
+  --bg-app: #0A0F1D; --bg-subtle: #0F1628; --bg-sidebar: #070B16; --bg-sidebar-2: #111A30;
+  --bg-header: #0D1324; --surface: #111A2D; --surface-2: #162036; --surface-raised: #18223A;
+  --field: #172137; --field-hover: #1C2741; --overlay: rgba(2, 5, 12, .66);
+  --primary: #3567F0; --primary-hover: #2A58D9; --primary-active: #2550CC;  /* white text ≥ 4.8:1 */
+  --primary-soft: rgba(76, 125, 255, .14); --primary-soft-2: rgba(76, 125, 255, .22);
+  --primary-border: rgba(102, 144, 255, .5); --primary-text: #8CAEFF; --on-primary: #FFFFFF;
+  --accent: #FF9A45; --accent-soft: rgba(255, 154, 69, .14); --accent-text: #FFB077;
+  --success-soft: rgba(38, 194, 129, .13); --success-border: rgba(38, 194, 129, .35); --success-text: #4FD69E;
+  --warning-soft: rgba(240, 170, 40, .13); --warning-border: rgba(240, 170, 40, .35); --warning-text: #F4BE5C;
+  --danger-soft: rgba(255, 92, 112, .13); --danger-border: rgba(255, 92, 112, .38); --danger-text: #FF8494;
+  --info-soft: rgba(64, 160, 255, .13); --info-border: rgba(64, 160, 255, .35); --info-text: #6DB6FF;
+  --neutral-soft: rgba(255,255,255,.07); --neutral-text: #B3BDD0;
+  --text-strong: #F3F6FC; --text: #D6DCE8; --text-2: #A5B0C4; --text-3: #8892A8;
+  --text-placeholder: #66718A; --text-disabled: #606B86;
+  --text-faint: #4D576D;
+  --line: #222C45; --line-soft: #1A2339; --line-strong: #2F3A57;
+  --hover: rgba(255, 255, 255, .045); --active: rgba(255, 255, 255, .08);
+  --ring: 0 0 0 3px rgba(76, 125, 255, .38);
+  --ring-danger-btn: 0 0 0 3px rgba(255, 92, 112, .38);
+  --c1: #4C7DFF; --c2: #FF9A45; --c3: #2EC4A8; --c4: #A58BFF; --c5: #56627C;
+  --c1-soft: rgba(76,125,255,.25); --c2-soft: rgba(255,154,69,.25); --grid: #1B2439;
+  --sh-xs: 0 1px 2px rgba(0,0,0,.3); --sh-sm: 0 1px 2px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.03);
+  --sh-md: 0 8px 20px -6px rgba(0,0,0,.5); --sh-lg: 0 20px 44px -12px rgba(0,0,0,.6);
+  --sh-xl: 0 32px 80px -16px rgba(0,0,0,.7); --sh-primary: 0 8px 20px -6px rgba(76,125,255,.55);
+}

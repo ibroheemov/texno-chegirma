@@ -8,6 +8,7 @@ import {
   Tags,
   Store,
   Settings,
+  PanelsTopLeft,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { href: "/admin", label: "Kassa", icon: ShoppingCart },
+  { href: "/admin/yangi-dizayn", label: "Yangi dizayn", icon: PanelsTopLeft },
   { href: "/admin/ombor", label: "Ombor", icon: Package },
   { href: "/admin/mijozlar", label: "Mijozlar", icon: Users },
   { href: "/admin/moliya", label: "Moliya", icon: Wallet },

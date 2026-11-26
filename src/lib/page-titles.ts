@@ -1,5 +1,6 @@
 export const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/admin": { title: "Kassa", subtitle: "Bugungi savdolar va tezkor sotuv" },
+  "/admin/yangi-dizayn": { title: "Yangi dizayn", subtitle: "Figma asosidagi yangi kassa oynasi" },
   "/admin/ombor": { title: "Ombor", subtitle: "Mahsulotlar va zaxiralarni boshqarish" },
   "/admin/mijozlar": { title: "Mijozlar", subtitle: "Mijozlar, buyurtmalar, yetkazish va qarzlar" },
   "/admin/moliya": { title: "Moliya", subtitle: "Kassa, kirim, chiqim, nasiya, hisobot va ta'minotchilar" },

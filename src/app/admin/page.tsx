@@ -57,6 +57,9 @@ export default async function KassaPage() {
     address: store?.address ?? null,
     logoUrl: store?.logoUrl || "/logo.png",
     telegramUsername: store?.telegramUsername ?? null,
+    instagramUsername: store?.instagramUsername ?? null,
+    telegramBotUsername: store?.telegramBotUsername ?? null,
+    telegramChannelUsername: store?.telegramChannelUsername ?? null,
     footer: store?.receiptFooter ?? null,
     autoPrint: store?.autoPrintReceipt ?? false,
   };

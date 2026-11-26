@@ -24,6 +24,10 @@ export function AdminShell({
   const pathname = usePathname();
   const page = pageTitles[pathname];
 
+  if (pathname === "/admin/yangi-dizayn") {
+    return <>{children}</>;
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");

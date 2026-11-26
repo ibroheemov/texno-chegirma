@@ -27,24 +27,25 @@ import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import { DeliveryDatePicker, DeliveryTimePicker } from "./DeliveryDateTimeFields";
 import { ReceiptModal } from "./ReceiptModal";
 import { MixedPaymentModal } from "./MixedPaymentModal";
+import { FigmaPosView } from "./FigmaPosView";
 import { printReceipt, type ReceiptSettings, type ReceiptSale } from "@/lib/receipt";
 
-type ProductWithCategory = Product & { category: Category | null };
+export type ProductWithCategory = Product & { category: Category | null };
 
-type CartLine = {
+export type CartLine = {
   product: ProductWithCategory;
   qty: number;
   adjustment: PriceAdjustment | null;
 };
 
-type PriceAdjustment = {
-  direction: "discount" | "increase";
+export type PriceAdjustment = {
+  direction: "discount" | "increase" | "set";
   unit: "percent" | "amount";
   value: number;
 };
 
 type StatusFilter = "all" | "available" | "low" | "out" | "discount";
-type PaymentMethod = "CASH" | "CARD" | "CREDIT" | "MIXED";
+export type PaymentMethod = "CASH" | "CARD" | "CREDIT" | "MIXED";
 
 type LastSale = ReceiptSale;
 
@@ -55,11 +56,12 @@ function effectivePrice(p: Product) {
 function cartUnitPrice(line: CartLine) {
   const basePrice = effectivePrice(line.product);
   if (!line.adjustment) return basePrice;
+  if (line.adjustment.direction === "set") return Math.max(0, Math.round(line.adjustment.value));
   const adjustment =
     line.adjustment.unit === "percent"
       ? (basePrice * line.adjustment.value) / 100
       : line.adjustment.value;
-  return Math.max(0, basePrice + (line.adjustment.direction === "discount" ? -adjustment : adjustment));
+  return Math.round(Math.max(0, basePrice + (line.adjustment.direction === "discount" ? -adjustment : adjustment)));
 }
 
 function stockBadge(p: Product) {
@@ -78,6 +80,7 @@ export function PosView({
   customPaymentMethods = [],
   deferredPaymentMethods = {},
   receipt,
+  design = "standard",
 }: {
   initialProducts: ProductWithCategory[];
   categories: Category[];
@@ -88,6 +91,7 @@ export function PosView({
   customPaymentMethods?: string[];
   deferredPaymentMethods?: Record<string, boolean>;
   receipt?: ReceiptSettings;
+  design?: "standard" | "figma";
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -95,7 +99,27 @@ export function PosView({
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const [products, setProducts] = useState(initialProducts);
   const [loading, setLoading] = useState(false);
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartBaskets, setCartBaskets] = useState<CartLine[][]>([[]]);
+  const [activeBasketIndex, setActiveBasketIndex] = useState(0);
+  const cart = useMemo(
+    () => cartBaskets[activeBasketIndex] ?? [],
+    [cartBaskets, activeBasketIndex]
+  );
+  function setCart(next: CartLine[] | ((current: CartLine[]) => CartLine[])) {
+    setCartBaskets((current) =>
+      current.map((basket, index) =>
+        index === activeBasketIndex
+          ? typeof next === "function"
+            ? next(basket)
+            : next
+          : basket
+      )
+    );
+  }
+  function createBasket() {
+    setCartBaskets((current) => [...current, []]);
+    setActiveBasketIndex(cartBaskets.length);
+  }
   const [employeeId, setEmployeeId] = useState("");
   const [customerMode, setCustomerMode] = useState<"existing" | "new">("existing");
   const [customerId, setCustomerId] = useState<string>("");
@@ -110,6 +134,8 @@ export function PosView({
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("CASH");
+  const [discountValue, setDiscountValue] = useState(0);
+  const [discountUnit, setDiscountUnit] = useState<"percent" | "amount">("percent");
   const [mixedCash, setMixedCash] = useState(0);
   const [mixedCard, setMixedCard] = useState(0);
   const [mixedCredit, setMixedCredit] = useState(0);
@@ -218,10 +244,15 @@ export function PosView({
     [products]
   );
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () => cart.reduce((sum, l) => sum + cartUnitPrice(l) * l.qty, 0),
     [cart]
   );
+  const discountAmount = Math.min(
+    subtotal,
+    Math.round(discountUnit === "percent" ? (subtotal * Math.min(100, Math.max(0, discountValue))) / 100 : Math.max(0, discountValue))
+  );
+  const total = Math.max(0, subtotal - discountAmount);
   const totalQty = useMemo(() => cart.reduce((sum, l) => sum + l.qty, 0), [cart]);
 
   const mixedCustomTotal = useMemo(
@@ -320,6 +351,7 @@ export function PosView({
           qty: l.qty,
           unitPrice: cartUnitPrice(l),
         })),
+        discountAmount,
         paymentMethod: standaloneCustomMethod ? "CUSTOM" : method,
         customerId: resolvedCustomerId,
         employeeId: employeeId || undefined,
@@ -344,6 +376,7 @@ export function PosView({
     const completedSale: LastSale = {
       items: cart.map((l) => ({ name: l.product.name, qty: l.qty, price: cartUnitPrice(l) })),
       total,
+      discountAmount,
       method: standaloneCustomMethod ?? method,
       customerName: customerMode === "new" ? newCustomerName.trim() || null : selectedCustomer?.name ?? null,
       createdAt: new Date(),
@@ -352,6 +385,8 @@ export function PosView({
     if (receipt?.autoPrint) void printReceipt(completedSale, receipt);
 
     setCart([]);
+    setDiscountValue(0);
+    setDiscountUnit("percent");
     setCustomerMode("existing");
     setCustomerId("");
     setCustomerSearch("");
@@ -373,7 +408,7 @@ export function PosView({
     setDueDate(defaultDueDate());
     setSettlementNote("");
     setSuccess(true);
-    setTimeout(() => setSuccess(false), 2000);
+    setTimeout(() => setSuccess(false), 15000);
     router.refresh();
     const params = new URLSearchParams();
     if (query) params.set("q", query);
@@ -382,6 +417,151 @@ export function PosView({
     const refreshed = await fetch(`/api/products?${params.toString()}`);
     const refreshedData = await refreshed.json();
     setProducts(refreshedData.products ?? []);
+  }
+
+  const posOverlays = (
+    <>
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onDetected={handleScanned}
+      />
+
+      {receipt && (
+        <ReceiptModal
+          open={receiptPreviewOpen}
+          onClose={() => setReceiptPreviewOpen(false)}
+          sale={lastSale}
+          settings={receipt}
+        />
+      )}
+
+      <MixedPaymentModal
+        open={mixedModalOpen}
+        onClose={() => setMixedModalOpen(false)}
+        total={total}
+        cash={mixedCash}
+        card={mixedCard}
+        credit={mixedCredit}
+        customMethods={customPaymentMethods}
+        customAmounts={mixedCustomAmounts}
+        onChangeCash={setMixedCash}
+        onChangeCard={setMixedCard}
+        onChangeCredit={setMixedCredit}
+        onChangeCustom={(name, v) => setMixedCustomAmounts((prev) => ({ ...prev, [name]: v }))}
+        onConfirm={() => setMixedModalOpen(false)}
+      />
+
+      {lightboxProduct && lightboxImages.length > 0 && (
+        <ImageLightbox
+          title={lightboxProduct.name}
+          images={lightboxImages}
+          index={lightboxIndex}
+          onIndexChange={setLightboxIndex}
+          onClose={() => setLightboxProduct(null)}
+        />
+      )}
+    </>
+  );
+
+  if (design === "figma") {
+    return (
+      <>
+        <FigmaPosView
+          products={sortedProducts}
+          customers={customers}
+          employees={employees}
+          currentUserName={currentUserName ?? "Men"}
+          query={query}
+          loading={loading}
+          cart={cart}
+          activeBasketIndex={activeBasketIndex}
+          basketItemCounts={cartBaskets.map((basket) => basket.length)}
+          subtotal={subtotal}
+          total={total}
+          totalQty={totalQty}
+          discountValue={discountValue}
+          discountUnit={discountUnit}
+          discountAmount={discountAmount}
+          selectedCustomer={selectedCustomer}
+          filteredCustomers={filteredCustomers}
+          customerMode={customerMode}
+          customerId={customerId}
+          customerSearch={customerSearch}
+          customerDropdownOpen={customerDropdownOpen}
+          newCustomerName={newCustomerName}
+          newCustomerPhone={newCustomerPhone}
+          newCustomerAddress={newCustomerAddress}
+          newCustomerNote={newCustomerNote}
+          customerInfoMissing={customerInfoMissing}
+          employeeId={employeeId}
+          needsDelivery={needsDelivery}
+          deliveryAddress={deliveryAddress}
+          deliveryDate={deliveryDate}
+          deliveryTime={deliveryTime}
+          setNeedsDelivery={setNeedsDelivery}
+          setDeliveryAddress={setDeliveryAddress}
+          setDeliveryDate={setDeliveryDate}
+          setDeliveryTime={setDeliveryTime}
+          method={method}
+          standaloneCustomMethod={standaloneCustomMethod}
+          customPaymentMethods={customPaymentMethods}
+          deferredPaymentMethods={deferredPaymentMethods}
+          enableMixedPayment={enableMixedPayment}
+          mixedCash={mixedCash}
+          mixedCard={mixedCard}
+          mixedCredit={mixedCredit}
+          mixedCustomAmounts={mixedCustomAmounts}
+          setMixedCash={setMixedCash}
+          setMixedCard={setMixedCard}
+          setMixedCredit={setMixedCredit}
+          setMixedCustomAmounts={setMixedCustomAmounts}
+          hasDeferredSelection={hasDeferredSelection}
+          settlementDate={settlementDate}
+          settlementNote={settlementNote}
+          dueDate={dueDate}
+          error={error}
+          success={success}
+          submitting={submitting}
+          receipt={receipt}
+          lastSale={lastSale}
+          setQuery={setQuery}
+          setActiveBasketIndex={setActiveBasketIndex}
+          createBasket={createBasket}
+          setCart={(nextCart) => setCart(nextCart)}
+          clearCart={() => setCart([])}
+          addToCart={addToCart}
+          changeQty={changeQty}
+          removeLine={removeLine}
+          unitPrice={cartUnitPrice}
+          updatePriceAdjustment={updatePriceAdjustment}
+          setDiscountValue={setDiscountValue}
+          setDiscountUnit={setDiscountUnit}
+          setCustomerMode={setCustomerMode}
+          setCustomerId={setCustomerId}
+          setCustomerSearch={setCustomerSearch}
+          setCustomerDropdownOpen={setCustomerDropdownOpen}
+          setNewCustomerName={setNewCustomerName}
+          setNewCustomerPhone={setNewCustomerPhone}
+          setNewCustomerAddress={setNewCustomerAddress}
+          setNewCustomerNote={setNewCustomerNote}
+          setEmployeeId={setEmployeeId}
+          setPaymentMethod={setMethod}
+          setStandaloneCustomMethod={setStandaloneCustomMethod}
+          setSettlementDate={setSettlementDate}
+          setSettlementNote={setSettlementNote}
+          setDueDate={setDueDate}
+          checkout={checkout}
+          setScannerOpen={setScannerOpen}
+          setReceiptPreviewOpen={setReceiptPreviewOpen}
+          onSearchSubmit={(value) => {
+            void handleScanned(value);
+            setQuery("");
+          }}
+        />
+        {posOverlays}
+      </>
+    );
   }
 
   return (
@@ -571,31 +751,35 @@ export function PosView({
                       value={l.adjustment.direction}
                       onChange={(e) =>
                         updatePriceAdjustment(l.product.id, {
-                          ...l.adjustment!,
+                          unit: e.target.value === "set" ? "amount" : "percent",
                           direction: e.target.value as PriceAdjustment["direction"],
+                          value: e.target.value === "set" ? cartUnitPrice(l) : 0,
                         })
                       }
                       className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-1.5 text-xs"
                     >
                       <option value="discount">Chegirma</option>
                       <option value="increase">Ustama</option>
+                      <option value="set">Maxsus narx</option>
                     </select>
-                    <select
-                      aria-label={`${l.product.name} o'zgarish birligi`}
-                      value={l.adjustment.unit}
-                      onChange={(e) =>
-                        updatePriceAdjustment(l.product.id, {
-                          ...l.adjustment!,
-                          unit: e.target.value as PriceAdjustment["unit"],
-                        })
-                      }
-                      className="h-8 rounded-md border border-border bg-background px-1.5 text-xs"
-                    >
-                      <option value="percent">%</option>
-                      <option value="amount">UZS</option>
-                    </select>
+                    {l.adjustment.direction !== "set" && (
+                      <select
+                        aria-label={`${l.product.name} o'zgarish birligi`}
+                        value={l.adjustment.unit}
+                        onChange={(e) =>
+                          updatePriceAdjustment(l.product.id, {
+                            ...l.adjustment!,
+                            unit: e.target.value as PriceAdjustment["unit"],
+                          })
+                        }
+                        className="h-8 rounded-md border border-border bg-background px-1.5 text-xs"
+                      >
+                        <option value="percent">%</option>
+                        <option value="amount">UZS</option>
+                      </select>
+                    )}
                     <input
-                      aria-label={`${l.product.name} ${l.adjustment.direction === "discount" ? "chegirma" : "ustama"} miqdori`}
+                      aria-label={`${l.product.name} ${l.adjustment.direction === "set" ? "maxsus narxi" : l.adjustment.direction === "discount" ? "chegirma" : "ustama"} miqdori`}
                       type="number"
                       min="0"
                       max={l.adjustment.direction === "discount" && l.adjustment.unit === "percent" ? 100 : undefined}
@@ -619,6 +803,19 @@ export function PosView({
                   </div>
                 ) : (
                   <div className="mt-1.5 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updatePriceAdjustment(l.product.id, {
+                          direction: "set",
+                          unit: "amount",
+                          value: effectivePrice(l.product),
+                        })
+                      }
+                      className="text-xs font-medium text-accent hover:underline"
+                    >
+                      Narx
+                    </button>
                     <button
                       type="button"
                       onClick={() => updatePriceAdjustment(l.product.id, { direction: "discount", unit: "percent", value: 0 })}

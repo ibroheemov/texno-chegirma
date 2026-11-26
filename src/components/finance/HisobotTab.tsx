@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, TrendingUp, TrendingDown, Package, Eye } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Package, Eye, ArrowDownLeft, ArrowUpRight, Ban } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { formatSom, formatDateTime } from "@/lib/format";
+import { resolveMethodLabel } from "@/lib/receipt";
 import { cn } from "@/lib/cn";
 import { SellerSoldItemsModal } from "./SellerSoldItemsModal";
 
@@ -20,6 +21,103 @@ type Report = {
 };
 
 type ExpenseEntry = { id: string; amount: number; category: string | null; note: string | null; createdAt: string };
+
+type LedgerEntry = {
+  id: string;
+  direction: "IN" | "OUT";
+  amount: number;
+  method: string;
+  note: string | null;
+  createdAt: string;
+  sale: {
+    canceled: boolean;
+    customer: { name: string } | null;
+    customAmounts: Record<string, number> | null;
+  } | null;
+};
+
+function LedgerTransactionsSection({ period }: { period: Period }) {
+  const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  const [loadedPeriod, setLoadedPeriod] = useState<Period | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/ledger?period=${period}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        setEntries(data.entries ?? []);
+        setLoadedPeriod(period);
+      });
+    return () => {
+      active = false;
+    };
+  }, [period]);
+  const loading = loadedPeriod !== period;
+
+  return (
+    <Card className="p-4">
+      <h3 className="text-sm font-semibold">Kirim / Sotuv / Chiqim harakatlari</h3>
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="animate-spin text-accent" size={24} />
+        </div>
+      ) : entries.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted">Harakatlar topilmadi</p>
+      ) : (
+        <div className="mt-3 flex flex-col divide-y divide-border/60">
+          {entries.map((entry) => (
+            <div
+              key={entry.id}
+              className={cn("flex items-center gap-3 py-2.5", entry.sale?.canceled && "opacity-50")}
+            >
+              <span
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full",
+                  entry.direction === "IN" ? "bg-accent-soft text-accent" : "bg-danger-soft text-danger"
+                )}
+              >
+                {entry.direction === "IN" ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {entry.sale
+                    ? `Sotuv${entry.sale.customer ? ` · ${entry.sale.customer.name}` : ""}`
+                    : entry.direction === "OUT"
+                      ? "Chiqim"
+                      : "Kirim"}
+                </p>
+                {entry.note && <p className="truncate text-xs text-muted">{entry.note}</p>}
+                <p className="text-xs text-muted">
+                  {formatDateTime(entry.createdAt)} ·{" "}
+                  {entry.method === "CASH"
+                    ? "naqd"
+                    : entry.method === "CARD"
+                      ? "karta"
+                      : resolveMethodLabel(entry.method, entry.sale?.customAmounts).toLowerCase()}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "whitespace-nowrap text-sm font-semibold",
+                  entry.direction === "IN" ? "text-accent" : "text-danger"
+                )}
+              >
+                {entry.direction === "IN" ? "+" : "-"}
+                {formatSom(entry.amount)}
+              </span>
+              {entry.sale?.canceled && (
+                <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-danger-soft px-2 py-1 text-xs text-danger">
+                  <Ban size={11} /> Bekor qilingan
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 function ExpensesListSection({ period }: { period: Period }) {
   const [entries, setEntries] = useState<ExpenseEntry[]>([]);
@@ -239,6 +337,7 @@ export function HisobotTab() {
             </p>
           </Card>
 
+          <LedgerTransactionsSection period={period} />
           <ExpensesListSection period={period} />
           <SellerSalesSection period={period} />
 
