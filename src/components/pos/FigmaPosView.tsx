@@ -54,7 +54,7 @@ const iconFiles = [
 const navLinks = [
   { href: "/admin", label: "Kassa", icon: 0 },
   { href: "/admin/yangi-dizayn/ombor", label: "Ombor", icon: 1 },
-  { href: "/admin/mijozlar", label: "Mijozlar", icon: 2 },
+  { href: "/admin/yangi-dizayn/mijozlar", label: "Mijozlar", icon: 2 },
   { href: "/admin/moliya", label: "Moliya", icon: 3 },
   { href: "/admin/nasiya", label: "Nasiya", icon: 4 },
   { href: "/admin/xodimlar", label: "Xodimlar", icon: 5 },

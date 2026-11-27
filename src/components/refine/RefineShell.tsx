@@ -28,7 +28,7 @@ type NavEntry = { href: string; label: string; icon: LucideIcon; migrated: boole
 const navEntries: NavEntry[] = [
   { href: "/admin/yangi-dizayn", label: "Kassa", icon: ShoppingCart, migrated: true },
   { href: "/admin/yangi-dizayn/ombor", label: "Ombor", icon: Package, migrated: true },
-  { href: "/admin/mijozlar", label: "Mijozlar", icon: Users, migrated: false },
+  { href: "/admin/yangi-dizayn/mijozlar", label: "Mijozlar", icon: Users, migrated: true },
   { href: "/admin/moliya", label: "Moliya", icon: Wallet, migrated: false },
   { href: "/admin/nasiya", label: "Nasiya", icon: CreditCard, migrated: false },
   { href: "/admin/xodimlar", label: "Xodimlar", icon: UserCog, migrated: false },
@@ -130,7 +130,7 @@ export function RefineShell({
           <div className="sb-foot">
             <div className="sb-card hide-c">
               <b>Bosqichma-bosqich o‘tish</b>
-              Kassa va Ombor yangi dizaynda. Qolgan bo‘limlar tayyor bo‘lguncha eski dizaynda ochiladi.
+              Kassa, Ombor va Mijozlar yangi dizaynda. Qolgan bo‘limlar tayyor bo‘lguncha eski dizaynda ochiladi.
               <Link href="/admin" className="rf-old-link">
                 Eski dizaynga o‘tish
                 <ChevronRight className="ic" size={14} />
