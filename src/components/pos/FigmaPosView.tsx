@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Customer } from "@prisma/client";
@@ -50,17 +49,6 @@ const iconFiles = [
   "9da5f.svg",
   "73481.svg",
 ] as const;
-
-const navLinks = [
-  { href: "/admin", label: "Kassa", icon: 0 },
-  { href: "/admin/yangi-dizayn/ombor", label: "Ombor", icon: 1 },
-  { href: "/admin/yangi-dizayn/mijozlar", label: "Mijozlar", icon: 2 },
-  { href: "/admin/moliya", label: "Moliya", icon: 3 },
-  { href: "/admin/nasiya", label: "Nasiya", icon: 4 },
-  { href: "/admin/xodimlar", label: "Xodimlar", icon: 5 },
-  { href: "/admin/kategoriyalar", label: "Kategoriyalar", icon: 6 },
-  { href: "/admin/sozlamalar", label: "Sozlamalar", icon: 7 },
-];
 
 type DeferredCart = { id: number; items: CartLine[] };
 
@@ -422,48 +410,6 @@ export function FigmaPosView(props: FigmaPosViewProps) {
 
   return (
     <div className="figma-pos">
-      <aside className="figma-rail" aria-label="Asosiy navigatsiya">
-        <Link href="/admin" className="figma-brand" aria-label="Kassa bosh sahifasi">
-          Z
-        </Link>
-        <nav className="figma-rail-nav">
-          {navLinks.map((item, index) => {
-            const active = index === 0;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`figma-rail-link${active ? " is-active" : ""}`}
-                title={item.label}
-                aria-label={item.label}
-                aria-current={active ? "page" : undefined}
-              >
-                <FigmaIcon index={item.icon} size={21} />
-                {active && <span className="figma-active-marker" />}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="figma-rail-bottom">
-          <button type="button" className="figma-rail-link" title="Yordam" aria-label="Yordam">
-            <FigmaIcon index={8} size={20} />
-          </button>
-          <Link
-            href="/admin/sozlamalar"
-            className="figma-profile"
-            title={props.currentUserName}
-            aria-label={`Profil: ${props.currentUserName}`}
-          >
-            {props.currentUserName
-              .split(/\s+/)
-              .slice(0, 2)
-              .map((part) => part[0]?.toUpperCase())
-              .join("") || "SH"}
-            <span />
-          </Link>
-        </div>
-      </aside>
-
       <div className="figma-main">
         <header className="figma-topbar">
           <div className="figma-topbar-left">

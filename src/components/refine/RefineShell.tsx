@@ -60,6 +60,9 @@ export function RefineShell({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
 
+  // Kassa is a full-bleed work area: no page padding and no shell top bar, so it fills the whole content column.
+  const bleed = pathname === "/admin/yangi-dizayn";
+
   const current = navEntries.find((entry) => entry.migrated && entry.href !== "/admin/yangi-dizayn" && pathname.startsWith(entry.href));
 
   async function logout() {
@@ -70,7 +73,7 @@ export function RefineShell({
 
   return (
     <div className="refine-ds rf-root">
-      <div className="shell rf-shell">
+      <div className={`shell rf-shell${bleed ? " is-bleed" : ""}`}>
         <aside className={`sb${collapsed ? " is-collapsed" : ""}`} aria-label="Asosiy navigatsiya">
           <div className="sb-brand">
             <span className="brand-mark">Z</span>
@@ -147,26 +150,28 @@ export function RefineShell({
         </aside>
 
         <div className="main">
-          <header className="topbar">
-            <nav className="crumbs" aria-label="Breadcrumb">
-              <Link href="/admin/yangi-dizayn">Yangi dizayn</Link>
-              <span className="sep">
-                <ChevronRight className="ic" size={14} />
-              </span>
-              <span aria-current="page">{current?.label ?? "Kassa"}</span>
-            </nav>
-            <span className="grow" />
-            <div className="hdr-user" title={userName}>
-              <span className="av">{initials(userName)}</span>
-              <span className="rf-hide-m">
-                <b>{userName}</b>
-                <small>{storeName}</small>
-              </span>
-            </div>
-            <button type="button" className="hdr-btn" onClick={logout} aria-label="Chiqish" title="Chiqish">
-              <LogOut className="ic" size={18} />
-            </button>
-          </header>
+          {!bleed && (
+            <header className="topbar">
+              <nav className="crumbs" aria-label="Breadcrumb">
+                <Link href="/admin/yangi-dizayn">Yangi dizayn</Link>
+                <span className="sep">
+                  <ChevronRight className="ic" size={14} />
+                </span>
+                <span aria-current="page">{current?.label ?? "Kassa"}</span>
+              </nav>
+              <span className="grow" />
+              <div className="hdr-user" title={userName}>
+                <span className="av">{initials(userName)}</span>
+                <span className="rf-hide-m">
+                  <b>{userName}</b>
+                  <small>{storeName}</small>
+                </span>
+              </div>
+              <button type="button" className="hdr-btn" onClick={logout} aria-label="Chiqish" title="Chiqish">
+                <LogOut className="ic" size={18} />
+              </button>
+            </header>
+          )}
           <main className="content">{children}</main>
         </div>
       </div>
