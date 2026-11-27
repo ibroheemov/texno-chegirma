@@ -4,6 +4,7 @@ type OrderNotification = {
   storeName: string;
   customerName: string;
   customerPhone: string;
+  extraPhone?: string | null;
   total: number;
   items: { name: string; qty: number; price: number }[];
   installmentMonths?: number | null;
@@ -24,6 +25,7 @@ export async function notifyNewOrder(
   const lines = [
     `🛒 *Yangi buyurtma* — ${order.storeName}`,
     `Mijoz: ${order.customerName} (${order.customerPhone})`,
+    order.extraPhone ? `Qo'shimcha tel: ${order.extraPhone}` : null,
     "",
     ...order.items.map((i) => `• ${i.name} × ${i.qty} = ${formatSom(i.price * i.qty)}`),
     "",
@@ -72,12 +74,23 @@ export function sendMessage(
     replyKeyboard?: ReplyKeyboard;
     requestContact?: boolean;
     removeKeyboard?: boolean;
+    // Keyboard with a native "share my location" button plus a skip button.
+    locationKeyboard?: { locationText: string; skipText: string };
   }
 ) {
   const reply_markup = options?.inlineKeyboard
     ? { inline_keyboard: options.inlineKeyboard }
     : options?.replyKeyboard
       ? { keyboard: options.replyKeyboard, resize_keyboard: true, is_persistent: true }
+      : options?.locationKeyboard
+      ? {
+          keyboard: [
+            [{ text: options.locationKeyboard.locationText, request_location: true }],
+            [{ text: options.locationKeyboard.skipText }],
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        }
       : options?.requestContact
       ? {
           keyboard: [[{ text: "📱 Telefon raqamni yuborish", request_contact: true }]],

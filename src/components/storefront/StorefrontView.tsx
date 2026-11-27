@@ -46,13 +46,13 @@ export function StorefrontView({
       }
       return [...prev, { product, qty: 1 }];
     });
-    setCartOpen(true);
   }
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
+  const totalPrice = cart.reduce((s, l) => s + l.product.price * l.qty, 0);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cn("flex flex-col gap-4", totalQty > 0 && "pb-20")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -135,6 +135,22 @@ export function StorefrontView({
           <p className="col-span-full py-16 text-center text-sm text-muted">Hech narsa topilmadi</p>
         )}
       </div>
+
+      {totalQty > 0 && (
+        <button
+          onClick={() => setCartOpen(true)}
+          className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-12 max-w-md items-center justify-between rounded-xl bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-lg"
+        >
+          <span className="flex items-center gap-2">
+            <ShoppingCart size={16} />
+            Buyurtmani tasdiqlash
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/25 px-1.5 text-[11px] font-bold">
+              {totalQty}
+            </span>
+          </span>
+          <span>{formatSom(totalPrice)}</span>
+        </button>
+      )}
 
       <CartDrawer
         open={cartOpen}
@@ -235,8 +251,10 @@ function CartDrawer({
 
   async function submit() {
     setError("");
-    if (!name || !phone) {
-      setError("Ism va telefon raqamingizni kiriting");
+    // Inside Telegram the main phone comes from the bot registration, so this field is optional there.
+    const inTelegram = Boolean(window.Telegram?.WebApp?.initData);
+    if (!name || (!phone && !inTelegram)) {
+      setError(inTelegram ? "Ismingizni kiriting" : "Ism va telefon raqamingizni kiriting");
       return;
     }
     if (!cart.length) {
@@ -251,6 +269,10 @@ function CartDrawer({
         customerName: name,
         customerPhone: phone,
         customerAddress: address,
+        customerLat: mapCoords?.lat,
+        customerLng: mapCoords?.lng,
+        // Lets the server link the order to the Telegram customer (for "Buyurtmalarim").
+        telegramInitData: window.Telegram?.WebApp?.initData || undefined,
         paymentMethod: paymentMethod === "INSTALLMENT" ? "CUSTOM" : paymentMethod,
         installmentMonths: paymentMethod === "INSTALLMENT" ? installmentMonths : undefined,
         items: cart.map((l) => ({ productId: l.product.id, name: l.product.name, qty: l.qty, price: l.product.price })),
@@ -345,7 +367,7 @@ function CartDrawer({
                 <Field label="Ismingiz">
                   <Input value={name} onChange={(e) => setName(e.target.value)} />
                 </Field>
-                <Field label="Telefon raqamingiz">
+                <Field label="Qo'shimcha telefon raqam">
                   <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998 90 123 45 67" />
                 </Field>
                 <Field label="Yetkazib berish manzili (ixtiyoriy)">

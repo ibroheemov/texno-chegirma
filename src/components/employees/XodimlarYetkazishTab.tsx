@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatSom, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { yandexMapsUrl, googleMapsUrl } from "@/lib/mapLinks";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELED" | "FAILED";
 type Period = "today" | "week" | "month" | "all";
@@ -15,7 +16,10 @@ type Order = {
   id: string;
   customerName: string;
   customerPhone: string;
+  extraPhone: string | null;
   customerAddress: string | null;
+  customerLat: number | null;
+  customerLng: number | null;
   total: number;
   status: OrderStatus;
   createdAt: string;
@@ -136,6 +140,7 @@ export function XodimlarYetkazishTab({ couriers }: { couriers: { id: string; nam
                     <p className="text-sm font-medium">{o.customerName}</p>
                     <p className="flex items-center gap-1 text-xs text-muted">
                       <Phone size={11} /> {o.customerPhone}
+                      {o.extraPhone && <> · {o.extraPhone} (qo&apos;shimcha)</>}
                       {o.customerAddress && (
                         <>
                           {" "}
@@ -143,6 +148,26 @@ export function XodimlarYetkazishTab({ couriers }: { couriers: { id: string; nam
                         </>
                       )}
                     </p>
+                    {o.customerLat != null && o.customerLng != null && (
+                      <p className="flex gap-2 text-xs">
+                        <a
+                          href={yandexMapsUrl(o.customerLat, o.customerLng)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-accent hover:underline"
+                        >
+                          Yandex
+                        </a>
+                        <a
+                          href={googleMapsUrl(o.customerLat, o.customerLng)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-accent hover:underline"
+                        >
+                          Google
+                        </a>
+                      </p>
+                    )}
                     <p className="text-xs text-muted">{formatDateTime(o.createdAt)}</p>
                   </div>
                   <div className="flex items-center gap-2">

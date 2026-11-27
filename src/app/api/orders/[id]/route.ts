@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { recordSaleForDeliveredOrder, revertSaleForOrder } from "@/lib/orderSales";
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/orders/[id]">) {
   const session = await getSession();
@@ -24,6 +25,24 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/orders/[id
     data.courierId = body.courierId || null;
   }
 
-  const updated = await prisma.onlineOrder.update({ where: { id }, data });
+  const statusChanged = data.status !== undefined && data.status !== order.status;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (statusChanged) {
+      // Compare-and-set on the old status so a double click can't record the sale twice.
+      const { count } = await tx.onlineOrder.updateMany({ where: { id, status: order.status }, data });
+      if (count === 0) return null;
+
+      if (data.status === "DELIVERED") {
+        await recordSaleForDeliveredOrder(tx, order);
+      } else if (order.status === "DELIVERED") {
+        await revertSaleForOrder(tx, order);
+      }
+      return tx.onlineOrder.findUniqueOrThrow({ where: { id } });
+    }
+    return tx.onlineOrder.update({ where: { id }, data });
+  });
+  if (!updated) return NextResponse.json({ error: "Buyurtma holati allaqachon o'zgartirilgan" }, { status: 409 });
+
   return NextResponse.json({ order: updated });
 }
