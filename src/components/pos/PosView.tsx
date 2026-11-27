@@ -100,7 +100,7 @@ export function PosView({
   const [products, setProducts] = useState(initialProducts);
   const [loading, setLoading] = useState(false);
   const [cartBaskets, setCartBaskets] = useState<CartLine[][]>([[]]);
-  const [activeBasketIndex, setActiveBasketIndex] = useState(0);
+  const [activeBasketIndex] = useState(0);
   const cart = useMemo(
     () => cartBaskets[activeBasketIndex] ?? [],
     [cartBaskets, activeBasketIndex]
@@ -116,10 +116,6 @@ export function PosView({
       )
     );
   }
-  function createBasket() {
-    setCartBaskets((current) => [...current, []]);
-    setActiveBasketIndex(cartBaskets.length);
-  }
   const [employeeId, setEmployeeId] = useState("");
   const [customerMode, setCustomerMode] = useState<"existing" | "new">("existing");
   const [customerId, setCustomerId] = useState<string>("");
@@ -134,6 +130,8 @@ export function PosView({
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("CASH");
+  // New design starts with no payment method selected; Old design keeps Naqd as the default.
+  const [paymentChosen, setPaymentChosen] = useState(design !== "figma");
   const [discountValue, setDiscountValue] = useState(0);
   const [discountUnit, setDiscountUnit] = useState<"percent" | "amount">("percent");
   const [mixedCash, setMixedCash] = useState(0);
@@ -296,6 +294,10 @@ export function PosView({
       setError("Mijoz ismini kiriting");
       return;
     }
+    if (!paymentChosen) {
+      setError("To'lov usulini tanlang");
+      return;
+    }
     if (needsDelivery && (!deliveryDate || !deliveryTime)) {
       setError("Yetkazib berish sanasi va vaqtini tanlang");
       return;
@@ -399,6 +401,7 @@ export function PosView({
     setDeliveryDate("");
     setDeliveryTime("");
     setMethod("CASH");
+    setPaymentChosen(design !== "figma");
     setMixedCash(0);
     setMixedCard(0);
     setMixedCredit(0);
@@ -476,7 +479,6 @@ export function PosView({
           loading={loading}
           cart={cart}
           activeBasketIndex={activeBasketIndex}
-          basketItemCounts={cartBaskets.map((basket) => basket.length)}
           subtotal={subtotal}
           total={total}
           totalQty={totalQty}
@@ -504,6 +506,8 @@ export function PosView({
           setDeliveryDate={setDeliveryDate}
           setDeliveryTime={setDeliveryTime}
           method={method}
+          paymentChosen={paymentChosen}
+          setPaymentChosen={setPaymentChosen}
           standaloneCustomMethod={standaloneCustomMethod}
           customPaymentMethods={customPaymentMethods}
           deferredPaymentMethods={deferredPaymentMethods}
@@ -526,8 +530,6 @@ export function PosView({
           receipt={receipt}
           lastSale={lastSale}
           setQuery={setQuery}
-          setActiveBasketIndex={setActiveBasketIndex}
-          createBasket={createBasket}
           setCart={(nextCart) => setCart(nextCart)}
           clearCart={() => setCart([])}
           addToCart={addToCart}

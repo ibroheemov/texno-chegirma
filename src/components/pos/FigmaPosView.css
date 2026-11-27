@@ -25,12 +25,21 @@
 
 .figma-pos .figma-kbd { display: inline-grid; min-width: 28px; height: 26px; place-items: center; padding: 0 7px; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: var(--r-xs); background: var(--surface); color: var(--text-3); font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: 500; line-height: 1; white-space: nowrap; }
 
+/* Left column: header over cart. Right column: the checkout sidebar, full height. */
 .figma-pos .figma-main {
-  display: flex;
+  display: grid;
   min-width: 0;
+  min-height: 0;
   flex: 1 1 auto;
-  flex-direction: column;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  grid-template-rows: auto minmax(0, 1fr);
 }
+
+.figma-pos .figma-topbar { grid-column: 1; grid-row: 1; }
+
+.figma-pos .figma-cart-workspace { grid-column: 1; grid-row: 2; }
+
+.figma-pos .figma-checkout { grid-column: 2; grid-row: 1 / -1; }
 
 .figma-pos .figma-topbar {
   z-index: 1;
@@ -46,12 +55,20 @@
   box-shadow: 0 1px 0 rgba(27, 39, 67, 0.06);
 }
 
-.figma-pos .figma-topbar-left,
-.figma-pos .figma-topbar-right {
+.figma-pos .figma-topbar-left {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 10px;
+}
+
+.figma-pos .figma-topbar-left {
+  flex: 1 1 auto;
+}
+
+.figma-pos .figma-topbar-left .figma-toolbar {
+  width: 100%;
+  flex: 1 1 auto;
 }
 
 .figma-pos .figma-page-title {
@@ -72,74 +89,24 @@
 
 .figma-pos .figma-page-title h1 { margin: 0; color: var(--text-strong); font-size: 23px; font-weight: 400; letter-spacing: -0.92px; line-height: 26px; }
 
-.figma-pos .figma-basket-tabs {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.figma-pos .figma-basket-tab,
-.figma-pos .figma-new-basket { display: flex; height: 42px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border: 0; border-radius: var(--r-lg); background: var(--bg-app); color: var(--text-2); font-size: var(--fs-lg); font-weight: 500; white-space: nowrap; cursor: pointer; }
-
-.figma-pos .figma-basket-tab.is-current {
-  background: var(--primary-soft);
-  color: var(--primary-text);
-  font-weight: 600;
-}
-
-.figma-pos .figma-basket-tab:disabled {
-  cursor: default;
-}
-
-.figma-pos .figma-tab-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--primary);
-}
-
-.figma-pos .figma-tab-count { color: var(--text-faint); font-size: var(--fs-2xs); font-weight: 500; }
-
-.figma-pos .figma-new-basket {
-  padding: 0 13px;
-  background: transparent;
-  color: var(--text-2);
-}
-
-.figma-pos .figma-new-basket:hover,
 .figma-pos .figma-text-action:hover {
   color: var(--primary-hover);
 }
 
-.figma-pos .figma-topbar-right {
-  flex: 0 0 auto;
-  gap: 10px;
-}
+.figma-pos .figma-seller-select { display: flex; width: 200px; height: 36px; flex: 0 0 auto; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-3); border-radius: var(--r-md); background: var(--field); color: var(--text-3); font-size: var(--fs-sm); font-weight: 400; white-space: nowrap; }
 
-.figma-pos .figma-seller-select { display: flex; width: 210px; height: 42px; align-items: center; gap: 9px; padding: 0 var(--sp-3); border-radius: var(--r-lg); background: var(--bg-app); color: var(--text-disabled); font-size: var(--fs-lg); font-weight: 400; white-space: nowrap; }
+.figma-pos .figma-seller-select select { min-width: 0; flex: 1; appearance: none; border: 0; outline: 0; background: transparent; color: var(--text); font-size: var(--fs-md); font-weight: 500; cursor: pointer; }
 
-.figma-pos .figma-seller-select select { min-width: 0; flex: 1; appearance: none; border: 0; outline: 0; background: transparent; color: var(--text); font-size: var(--fs-lg); font-weight: 500; cursor: pointer; }
-
-.figma-pos .figma-sale-type { display: flex; height: 42px; align-items: center; padding: var(--sp-1); border-radius: var(--r-lg); background: var(--field-hover); }
-
-.figma-pos .figma-sale-type button { height: 34px; flex: 0 0 auto; padding: 0 15px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-disabled); font-size: var(--fs-lg); font-weight: 500; cursor: pointer; }
-
-.figma-pos .figma-sale-type button.is-current { background: var(--surface); color: var(--text-strong); font-weight: 600; box-shadow: var(--sh-sm); }
-
-.figma-pos .figma-work-area {
-  display: grid;
-  min-height: 0;
-  flex: 1 1 auto;
-  grid-template-columns: minmax(0, 1fr) 440px;
-}
+.figma-pos .figma-work-area { display: contents; }
 
 .figma-pos .figma-cart-workspace {
   display: flex;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  gap: 13px;
-  padding: 18px var(--sp-5) var(--sp-3);
+  gap: 0;
+  padding: 0;
+  background: var(--surface);
 }
 
 .figma-pos .figma-toolbar {
@@ -156,18 +123,17 @@
   grid-column: auto;
 }
 
-.figma-pos .figma-search,
 .figma-pos .figma-toolbar-button { display: flex; width: 100%; height: 48px; align-items: center; gap: 13px; padding: 0 15px 0 19px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--sh-xs); }
-
-.figma-pos .figma-search > input { width: 100%; min-width: 0; height: 100%; flex: 1; border: 0; outline: none; background: transparent; color: var(--text-strong); font-size: var(--fs-md); }
-
-.figma-pos .figma-search > input::placeholder { color: var(--text-placeholder); }
 
 .figma-pos .figma-toolbar-button { position: relative; width: 48px; height: 48px; justify-content: center; padding: 0; border-color: var(--line); color: var(--neutral-text); font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; cursor: pointer; transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease); }
 
-.figma-pos .figma-search {
+/* Refine "Soft" search field (.control-soft); only the size is Kassa's, to line up with the 48px buttons. */
+.figma-pos .figma-search.control {
+  width: 100%;
   height: 48px;
+  gap: 13px;
   padding: 0 15px 0 19px;
+  border-radius: var(--r-lg);
 }
 
 .figma-pos .figma-icon-button {
@@ -298,22 +264,24 @@
   padding: 14px;
 }
 
-.figma-pos .figma-cart-panel { display: flex; min-width: 0; min-height: 0; flex: 1 1 auto; flex-direction: column; overflow: hidden; border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--sh-md); }
+.figma-pos .figma-cart-panel { display: flex; min-width: 0; min-height: 0; flex: 1 1 auto; flex-direction: column; overflow: hidden; background: var(--surface); }
 
-.figma-pos .figma-cart-header { display: flex; min-height: 64px; flex: 0 0 64px; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: 0 14px 0 25px; }
+/* Wraps onto a second line when the cart column is narrow (summary + seller select + clear button). */
+.figma-pos .figma-cart-header { display: flex; min-height: 64px; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-3); padding: 8px 14px 8px 25px; }
 
 .figma-pos .figma-cart-summary {
   display: flex;
   min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 13px;
+  gap: var(--sp-2) 13px;
 }
 
 .figma-pos .figma-receipt-id { display: inline-flex; height: 30px; align-items: center; padding: 0 10px; border-radius: var(--r-sm); background: var(--field-hover); color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
 
 .figma-pos .figma-cart-summary strong { overflow: hidden; color: var(--text-2); font-size: 15px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 
-.figma-pos .figma-clear-cart { display: flex; align-items: center; gap: var(--sp-2); padding: 5px 0 5px var(--sp-2); border: 0; background: transparent; color: var(--text-disabled); font-size: 15px; font-weight: 500; cursor: pointer; }
+.figma-pos .figma-clear-cart { display: flex; flex: 0 0 auto; white-space: nowrap; align-items: center; gap: var(--sp-2); padding: 5px 0 5px var(--sp-2); border: 0; background: transparent; color: var(--text-disabled); font-size: 15px; font-weight: 500; cursor: pointer; }
 
 .figma-pos .figma-clear-cart:disabled {
   opacity: 0.55;
@@ -339,11 +307,42 @@
   text-align: center;
 }
 
-.figma-pos .figma-empty-state > span { display: grid; width: 64px; height: 64px; place-items: center; border-radius: var(--r-2xl); background: var(--primary-soft); color: var(--primary-text); }
+.figma-pos .figma-empty-icon { margin-bottom: var(--sp-3); color: var(--text-placeholder); }
 
-.figma-pos .figma-empty-state h2 { margin: 14px 0 5px; color: var(--text-strong); font-size: var(--fs-lg); font-weight: 400; }
+.figma-pos .figma-empty-state h2 { margin: 0 0 var(--sp-2); color: var(--text-2); font-size: var(--fs-2xl); font-weight: 600; letter-spacing: -0.01em; line-height: var(--lh-snug, 1.3); }
 
-.figma-pos .figma-empty-state p { max-width: 360px; margin: 0; color: var(--text-3); font-size: var(--fs-sm); line-height: 1.5; }
+.figma-pos .figma-empty-state p { max-width: 300px; margin: 0; color: var(--text-placeholder); font-size: var(--fs-md); font-weight: 500; line-height: 1.45; }
+
+/* Empty cart: a dashed outline inset from the edges of the cart area.
+   Drawn as SVG because a CSS dashed border can't set dash length or gap. */
+.figma-pos .figma-cart-panel.is-empty {
+  margin: var(--sp-5);
+}
+
+.figma-pos .figma-empty-state { position: relative; }
+
+.figma-pos .figma-empty-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--line-strong);
+}
+
+.figma-pos .figma-empty-outline rect {
+  x: 1px;
+  y: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  rx: var(--r-2xl);
+  ry: var(--r-2xl);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2px;
+  stroke-dasharray: 14 10;
+}
 
 .figma-pos .figma-cart-table {
   width: 100%;
@@ -358,7 +357,7 @@
   padding: 0 29px 0 14px;
 }
 
-.figma-pos .figma-cart-table-header { height: 50px; background: var(--bg-app); color: var(--text-disabled); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.72px; text-transform: uppercase; }
+.figma-pos .figma-cart-table-header { height: 50px; background: var(--surface); border-bottom: 1px solid var(--line-soft); color: var(--text-disabled); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.72px; text-transform: uppercase; }
 
 .figma-pos .figma-cart-row {
   position: relative;
@@ -552,9 +551,8 @@
   justify-content: flex-start;
   gap: 18px;
   padding: 0 14px;
-  border-radius: var(--r-lg);
+  border-top: 1px solid var(--line-soft);
   background: var(--surface);
-  box-shadow: var(--sh-sm);
   color: var(--text-3);
 }
 
@@ -568,7 +566,7 @@
 
 .figma-pos .figma-shortcuts .figma-shortcuts-title {
   gap: 7px;
-  color: var(--primary-text);
+  color: var(--text-2);
   font-size: var(--fs-sm);
 }
 
@@ -579,6 +577,9 @@
 .figma-pos .figma-shortcuts .figma-kbd { height: 26px; min-width: 28px; padding: 0 7px; font-size: var(--fs-sm); }
 
 .figma-pos .figma-checkout {
+  /* Positioned so its left shadow paints over the (positioned) cart rows. */
+  position: relative;
+  z-index: 2;
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -612,7 +613,8 @@
 
 .figma-pos .figma-heading-label { display: flex; align-items: center; gap: 10px; }
 
-.figma-pos .figma-heading-label h2 { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; line-height: 22px; }
+.figma-pos .figma-heading-label h2,
+.figma-pos .figma-toggle-title { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; line-height: 22px; }
 
 .figma-pos .figma-text-action { display: flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: var(--primary-text); font-size: var(--fs-md); font-weight: 600; white-space: nowrap; cursor: pointer; }
 
@@ -697,7 +699,7 @@
 
 .figma-pos .figma-discount-section {
   padding: 15px 23px 14px;
-  border-bottom: 0;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .figma-pos .figma-discount-heading {
@@ -1141,7 +1143,8 @@
 
 .figma-pos .figma-pay-button { display: inline-flex; width: 100%; height: 52px; align-items: center; justify-content: center; gap: var(--sp-2); margin-top: 14px; padding: 0 var(--sp-6); border: 1px solid transparent; border-radius: var(--r-lg); background: var(--primary); color: var(--on-primary); font-size: var(--fs-lg); font-weight: 600; line-height: 1; white-space: nowrap; cursor: pointer; transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur-fast) var(--ease); }
 
-.figma-pos .figma-pay-button:disabled { cursor: not-allowed; opacity: 1; border-color: transparent; background: var(--bg-subtle); color: var(--text-3); box-shadow: none; }
+/* Disabled = Refine `.btn:disabled`: --bg-subtle fill, --text-disabled label and icon, no border or shadow. */
+.figma-pos .figma-pay-button:disabled { cursor: not-allowed; opacity: 1; border-color: transparent; background: var(--bg-subtle); color: var(--text-disabled); box-shadow: none; transform: none; }
 
 .figma-pos .figma-pay-button .figma-kbd { min-width: 20px; height: 20px; padding: 0 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-bottom-width: 2px; border-radius: var(--r-xs); background: rgba(255, 255, 255, 0.14); color: var(--on-primary); font-size: var(--fs-2xs); }
 
@@ -1233,27 +1236,25 @@
 .figma-pos .figma-pay-button:hover:not(:disabled) { background: var(--primary-hover); }
 .figma-pos .figma-pay-button:active:not(:disabled) { background: var(--primary-active); transform: translateY(1px); }
 .figma-pos .figma-pay-button:focus-visible { outline: none; box-shadow: var(--ring); }
-.figma-pos .figma-pay-button:disabled .figma-kbd { border-color: var(--line-strong); background: transparent; color: var(--text-3); }
+.figma-pos .figma-pay-button:disabled .figma-kbd,
+.figma-pos .figma-postpone-button:disabled .figma-kbd { border-color: var(--line); background: transparent; color: var(--text-disabled); }
 
 /* Refine Dashboard Design System: Button / Secondary / medium (44px) */
 .figma-pos .figma-postpone-button:hover:not(:disabled) { background: var(--primary-soft-2); }
 .figma-pos .figma-postpone-button:active:not(:disabled) { background: var(--primary-soft-2); box-shadow: inset 0 1px 2px rgba(36, 87, 230, 0.14); transform: translateY(1px); }
 .figma-pos .figma-postpone-button:focus-visible { outline: none; box-shadow: var(--ring); }
-.figma-pos .figma-postpone-button:disabled { cursor: not-allowed; background: var(--bg-subtle); color: var(--text-3); box-shadow: none; }
+.figma-pos .figma-postpone-button:disabled { cursor: not-allowed; border-color: transparent; background: var(--bg-subtle); color: var(--text-disabled); box-shadow: none; transform: none; }
+
+.figma-pos .figma-button-icon { flex: 0 0 auto; }
 
 @media (max-width: 1250px) and (min-width: 1101px) {
-  .figma-pos .figma-work-area {
+  .figma-pos .figma-main {
     grid-template-columns: minmax(0, 1fr) 390px;
   }
 
   .figma-pos .figma-topbar {
     padding-right: var(--sp-4);
     padding-left: var(--sp-4);
-  }
-
-  .figma-pos .figma-cart-workspace {
-    padding-right: 14px;
-    padding-left: 14px;
   }
 
   .figma-pos .figma-toolbar {
@@ -1280,14 +1281,24 @@
     overflow: visible;
   }
 
+  /* Stacked layout: header, then cart, then checkout (no side column). */
   .figma-pos .figma-main {
+    display: flex;
     min-height: 100vh;
+    flex-direction: column;
   }
 
   .figma-pos .figma-work-area {
+    display: grid;
     flex: 1 0 auto;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(440px, 65vh) auto;
+  }
+
+  .figma-pos .figma-cart-workspace,
+  .figma-pos .figma-checkout {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .figma-pos .figma-checkout {
@@ -1325,18 +1336,9 @@
     padding: var(--sp-3);
   }
 
-  .figma-pos .figma-topbar-left,
-  .figma-pos .figma-topbar-right {
+  .figma-pos .figma-topbar-left {
     width: 100%;
     flex: 1 1 100%;
-  }
-
-  .figma-pos .figma-topbar-left {
-    overflow-x: auto;
-  }
-
-  .figma-pos .figma-topbar-right {
-    justify-content: flex-end;
   }
 
   .figma-pos .figma-page-title {
@@ -1348,28 +1350,8 @@
     font-size: var(--fs-2xl);
   }
 
-  .figma-pos .figma-basket-tabs {
-    gap: 6px;
-  }
-
-  .figma-pos .figma-basket-tab,
-  .figma-pos .figma-new-basket {
-    height: 38px;
-    padding-right: 10px;
-    padding-left: 10px;
-  }
-
   .figma-pos .figma-seller-select {
-    width: min(190px, 48%);
-  }
-
-  .figma-pos .figma-sale-type {
-    width: min(185px, 48%);
-  }
-
-  .figma-pos .figma-cart-workspace {
-    gap: 9px;
-    padding: var(--sp-3) 9px;
+    width: 150px;
   }
 
   .figma-pos .figma-toolbar {
@@ -1382,7 +1364,7 @@
     height: 44px;
   }
 
-  .figma-pos .figma-search {
+  .figma-pos .figma-search.control {
     height: 44px;
     padding-right: var(--sp-2);
     padding-left: 10px;
@@ -1518,17 +1500,6 @@
     flex-basis: 80px;
   }
 
-  .figma-pos .figma-basket-tab {
-    gap: var(--sp-1);
-    padding-right: 7px;
-    padding-left: 7px;
-    font-size: var(--fs-2xs);
-  }
-
-  .figma-pos .figma-new-basket {
-    padding: 0 6px;
-  }
-
   .figma-pos .figma-cart-table-header,
   .figma-pos .figma-cart-row {
     grid-template-columns: 18px minmax(90px, 1fr) minmax(55px, 0.5fr) 78px minmax(55px, 0.55fr) 20px;
@@ -1558,28 +1529,22 @@
 
 .figma-pos .figma-payment-deferred { margin-left: var(--sp-1); vertical-align: -1px; color: var(--warning-text); }
 
-.figma-pos .figma-delivery-section { border-bottom: 1px solid var(--line-soft); }
+.figma-pos .figma-toggle-section { border-bottom: 1px solid var(--line-soft); }
 
-.figma-pos .figma-delivery-toggle { display: flex; align-items: center; gap: var(--sp-2); color: var(--text); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+/* The delivery section is the last one in the sidebar body. */
+.figma-pos .figma-toggle-section:last-child { border-bottom: 0; }
 
-.figma-pos .figma-delivery-toggle input { width: 16px; height: 16px; accent-color: var(--primary); }
+/* Delivery section uses Refine components: .check, .field, .label and .control. */
+/* Title on the left, checkbox at the right end of the row. The DOM keeps input + box adjacent
+   (the Refine `input:checked + .box` rule needs it), so the row is reversed visually. */
+.figma-pos .figma-toggle-row { width: 100%; flex-direction: row-reverse; align-items: center; justify-content: space-between; }
 
-.figma-pos .figma-delivery-fields { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); }
+.figma-pos .figma-toggle-row .box { margin-top: 0; }
 
-.figma-pos .figma-delivery-fields > input,
-.figma-pos .figma-delivery-datetime input,
-.figma-pos .figma-time-select { height: 40px; padding: 0 var(--sp-3); border: 0; border-radius: var(--r-md); background: var(--field); color: var(--text-strong); font-size: var(--fs-xs); }
+.figma-pos .figma-delivery-fields { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-4); }
 
-.figma-pos .figma-delivery-datetime { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.figma-pos .figma-delivery-datetime { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-3); }
 
-.figma-pos .figma-delivery-datetime > label { display: flex; min-width: 0; flex-direction: column; gap: var(--sp-1); color: var(--text-3); font-size: var(--fs-2xs); }
+.figma-pos .figma-delivery-datetime .control select { cursor: pointer; }
 
-.figma-pos .figma-delivery-datetime input { width: 100%; }
-
-.figma-pos .figma-time-select { display: flex; align-items: center; gap: var(--sp-1); padding: 0 var(--sp-2); }
-
-.figma-pos .figma-time-select select { min-width: 0; height: 100%; flex: 1; border: 0; outline: 0; background: transparent; color: var(--text-strong); font-size: var(--fs-xs); }
-
-.figma-pos .figma-delivery-fields > input:focus-visible,
-.figma-pos .figma-delivery-datetime input:focus-visible,
-.figma-pos .figma-time-select:focus-within { outline: none; box-shadow: var(--ring); }
+.figma-pos .figma-time-sep { color: var(--text-3); }

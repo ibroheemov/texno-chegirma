@@ -114,3 +114,30 @@
     padding: var(--sp-3) var(--sp-4);
   }
 }
+
+/* Thin, light scrollbars for New design pages (the global one is a 10px Old-design thumb). */
+.refine-ds * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.refine-ds *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.refine-ds *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.refine-ds *::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+  background-clip: content-box;
+}
+
+.refine-ds *::-webkit-scrollbar-thumb:hover {
+  background: var(--text-placeholder);
+  background-clip: content-box;
+}

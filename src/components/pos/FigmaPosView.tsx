@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Customer } from "@prisma/client";
-import { Banknote, Check, ChevronDown, Clock, CreditCard, Plus, ScanBarcode, Tag, Trash2, Wallet, X } from "lucide-react";
+import { Banknote, CalendarDays, Check, ChevronDown, Clock, Command, CreditCard, MapPin, Pause, Plus, ScanBarcode, ScanLine, Tag, Trash2, Wallet, X } from "lucide-react";
 import type { ReceiptSale, ReceiptSettings } from "@/lib/receipt";
 import { formatSom } from "@/lib/format";
 import type { CartLine, PaymentMethod, PriceAdjustment, ProductWithCategory } from "./PosView";
@@ -61,7 +61,6 @@ type FigmaPosViewProps = {
   loading: boolean;
   cart: CartLine[];
   activeBasketIndex: number;
-  basketItemCounts: number[];
   subtotal: number;
   total: number;
   totalQty: number;
@@ -89,6 +88,9 @@ type FigmaPosViewProps = {
   setDeliveryDate: (value: string) => void;
   setDeliveryTime: (value: string) => void;
   method: PaymentMethod;
+  /** False until the cashier picks a payment method (New design has no default). */
+  paymentChosen: boolean;
+  setPaymentChosen: (value: boolean) => void;
   standaloneCustomMethod: string | null;
   customPaymentMethods: string[];
   deferredPaymentMethods: Record<string, boolean>;
@@ -111,8 +113,6 @@ type FigmaPosViewProps = {
   receipt?: ReceiptSettings;
   lastSale: ReceiptSale | null;
   setQuery: (value: string) => void;
-  setActiveBasketIndex: (index: number) => void;
-  createBasket: () => void;
   setCart: (cart: CartLine[]) => void;
   clearCart: () => void;
   addToCart: (product: ProductWithCategory) => void;
@@ -218,12 +218,17 @@ export function FigmaPosView(props: FigmaPosViewProps) {
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
       const target = event.target;
+      // Checkboxes and radios aren't text fields, so shortcuts like "/" still work while one has focus.
       const isEditing =
-        target instanceof HTMLInputElement ||
+        (target instanceof HTMLInputElement && !["checkbox", "radio", "button"].includes(target.type)) ||
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement;
 
       if (event.key === "F2") {
+        event.preventDefault();
+        searchRef.current?.focus();
+      } else if (event.key === "/" && !isEditing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        // Same as F2, matching the hint in the empty cart.
         event.preventDefault();
         searchRef.current?.focus();
       } else if (event.key === "F3") {
@@ -241,7 +246,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
         router.push("/admin/moliya");
       } else if (event.key === "F9") {
         event.preventDefault();
-        postponeCart();
+        if (!props.submitting && (props.cart.length > 0 || deferredCarts.length > 0)) postponeCart();
       } else if (event.key === "F10") {
         event.preventDefault();
         props.checkout();
@@ -266,7 +271,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [props, postponeCart, router, selectedRow]);
+  }, [props, postponeCart, router, selectedRow, deferredCarts.length]);
 
   function paymentAmount(method: string) {
     if (props.method !== "MIXED" || props.standaloneCustomMethod) {
@@ -331,6 +336,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
   function removePaymentMethod(method: string) {
     if (visiblePaymentMethods.length === 1) {
       setPaymentLineMethods(["Naqd"]);
+      props.setPaymentChosen(false);
       props.setPaymentMethod("CASH");
       props.setStandaloneCustomMethod(null);
       props.setMixedCash(0);
@@ -371,8 +377,9 @@ export function FigmaPosView(props: FigmaPosViewProps) {
     { label: "Qarz", Icon: Wallet },
     ...props.customPaymentMethods.map((label) => ({ label, Icon: Wallet })),
   ];
-  const visiblePaymentMethods =
-    props.method === "MIXED" && !props.standaloneCustomMethod
+  const visiblePaymentMethods = !props.paymentChosen
+    ? []
+    : props.method === "MIXED" && !props.standaloneCustomMethod
       ? paymentLineMethods
       : [props.standaloneCustomMethod ??
         (props.method === "CARD"
@@ -381,28 +388,39 @@ export function FigmaPosView(props: FigmaPosViewProps) {
             ? "Qarz"
             : "Naqd")];
 
+  // Replaces the whole selection with a single payment method (the full amount goes to it).
+  function selectSingleMethod(method: string) {
+    setPaymentLineMethods([method]);
+    props.setMixedCash(0);
+    props.setMixedCard(0);
+    props.setMixedCredit(0);
+    props.setMixedCustomAmounts({});
+    if (method === "Naqd") {
+      props.setStandaloneCustomMethod(null);
+      props.setPaymentMethod("CASH");
+    } else if (method === "Qarz") {
+      props.setStandaloneCustomMethod(null);
+      props.setPaymentMethod("CREDIT");
+    } else if (method === "Karta") {
+      props.setStandaloneCustomMethod(null);
+      props.setPaymentMethod("CARD");
+    } else {
+      props.setStandaloneCustomMethod(method);
+      props.setPaymentMethod("MIXED");
+    }
+    props.setPaymentChosen(true);
+  }
+
   function handlePaymentOption(method: string) {
     if (visiblePaymentMethods.includes(method)) return;
+    // Nothing selected yet: the first tap picks that method on its own.
+    if (!props.paymentChosen) {
+      selectSingleMethod(method);
+      return;
+    }
     if (!props.enableMixedPayment) {
       if (visiblePaymentMethods.length !== 1 || props.method === "MIXED") return;
-      setPaymentLineMethods([method]);
-      props.setMixedCash(0);
-      props.setMixedCard(0);
-      props.setMixedCredit(0);
-      props.setMixedCustomAmounts({});
-      if (method === "Naqd") {
-        props.setStandaloneCustomMethod(null);
-        props.setPaymentMethod("CASH");
-      } else if (method === "Qarz") {
-        props.setStandaloneCustomMethod(null);
-        props.setPaymentMethod("CREDIT");
-      } else if (method === "Karta") {
-        props.setStandaloneCustomMethod(null);
-        props.setPaymentMethod("CARD");
-      } else {
-        props.setStandaloneCustomMethod(method);
-        props.setPaymentMethod("MIXED");
-      }
+      selectSingleMethod(method);
       return;
     }
     addPaymentMethod(method);
@@ -413,78 +431,9 @@ export function FigmaPosView(props: FigmaPosViewProps) {
       <div className="figma-main">
         <header className="figma-topbar">
           <div className="figma-topbar-left">
-            <div className="figma-page-title">
-              <span>SAVDO OYNASI</span>
-              <h1>Savatcha</h1>
-            </div>
-            <div className="figma-basket-tabs" role="tablist" aria-label="Savatlar">
-              {props.basketItemCounts.map((itemCount, index) => (
-                <button
-                  type="button"
-                  key={index}
-                  role="tab"
-                  aria-selected={props.activeBasketIndex === index}
-                  className={`figma-basket-tab${props.activeBasketIndex === index ? " is-current" : ""}`}
-                  onClick={() => props.setActiveBasketIndex(index)}
-                  disabled={props.submitting}
-                >
-                  {props.activeBasketIndex === index && <span className="figma-tab-dot" />}
-                  Savat {index + 1}
-                  {index !== 0 && (
-                    <span className="figma-tab-count">
-                      {itemCount} poz.
-                    </span>
-                  )}
-                </button>
-              ))}
-              <button type="button" className="figma-new-basket" onClick={props.createBasket}>
-                <FigmaIcon index={9} size={17} />
-                Yangi savat
-              </button>
-            </div>
-          </div>
-          <div className="figma-topbar-right">
-            <label className="figma-seller-select">
-              <FigmaIcon index={10} size={16} />
-              <span>Sotuvchi:</span>
-              <select
-                value={props.employeeId}
-                onChange={(event) => props.setEmployeeId(event.target.value)}
-                aria-label="Sotuvchi"
-              >
-                <option value="">Barchasi</option>
-                {props.employees?.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </option>
-                ))}
-              </select>
-              <FigmaIcon index={11} size={14} />
-            </label>
-            <div className="figma-sale-type" role="group" aria-label="Savdo turi">
-              <button
-                type="button"
-                className={saleType === "retail" ? "is-current" : ""}
-                onClick={() => setSaleType("retail")}
-              >
-                Chakana
-              </button>
-              <button
-                type="button"
-                className={saleType === "wholesale" ? "is-current" : ""}
-                onClick={() => setSaleType("wholesale")}
-              >
-                Ulgurji
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <div className="figma-work-area">
-          <section className="figma-cart-workspace" aria-label="Savat">
             <div className="figma-toolbar">
               <div className="figma-search-wrap">
-                <label className="figma-search">
+                <label className="figma-search control control-soft">
                   <FigmaIcon index={12} size={24} />
                   <input
                     ref={searchRef}
@@ -579,30 +528,51 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                 <span className="figma-toolbar-tooltip">Tarix<Shortcut>F8</Shortcut></span>
               </button>
             </div>
+          </div>
+        </header>
 
-            <div className="figma-cart-panel">
-              <div className="figma-cart-header">
-                <div className="figma-cart-summary">
-                  <span className="figma-receipt-id">Savat #{String(props.activeBasketIndex + 1).padStart(2, "0")}</span>
-                  <strong>{props.cart.length} pozitsiya · {props.totalQty} dona</strong>
+        <div className="figma-work-area">
+          <section className="figma-cart-workspace" aria-label="Savat">
+            <div className={`figma-cart-panel${props.cart.length ? "" : " is-empty"}`}>
+              {props.cart.length > 0 && (
+                <div className="figma-cart-header">
+                  <div className="figma-cart-summary">
+                    <span className="figma-receipt-id">Savat #{String(props.activeBasketIndex + 1).padStart(2, "0")}</span>
+                    <strong>{props.cart.length} pozitsiya · {props.totalQty} dona</strong>
+                    <label className="figma-seller-select">
+                      <FigmaIcon index={10} size={16} />
+                      <span>Sotuvchi:</span>
+                      <select
+                        value={props.employeeId}
+                        onChange={(event) => props.setEmployeeId(event.target.value)}
+                        aria-label="Sotuvchi"
+                      >
+                        <option value="">Barchasi</option>
+                        {props.employees?.map((employee) => (
+                          <option key={employee.id} value={employee.id}>
+                            {employee.name}
+                          </option>
+                        ))}
+                      </select>
+                      <FigmaIcon index={11} size={14} />
+                    </label>
+                  </div>
+                  <button type="button" className="figma-clear-cart" onClick={props.clearCart}>
+                    <FigmaIcon index={16} size={16} />
+                    Savatni tozalash
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="figma-clear-cart"
-                  onClick={props.clearCart}
-                  disabled={!props.cart.length}
-                >
-                  <FigmaIcon index={16} size={16} />
-                  Savatni tozalash
-                </button>
-              </div>
+              )}
 
               <div className="figma-table-scroll">
                 {!props.cart.length ? (
                   <div className="figma-empty-state">
-                    <span><FigmaIcon index={0} size={28} /></span>
-                    <h2>Savatcha bo‘sh</h2>
-                    <p>Mahsulot qo‘shish uchun shtrix-kodni skanerlang yoki qidiruvdan foydalaning.</p>
+                    <svg className="figma-empty-outline" aria-hidden="true">
+                      <rect />
+                    </svg>
+                    <ScanLine className="figma-empty-icon" size={40} strokeWidth={1.5} aria-hidden="true" />
+                    <h2>Savatcha hozircha bo‘sh</h2>
+                    <p>Tovarlarni qidirish uchun “/” tugmasini bosing yoki tovarlarni skanerlang</p>
                   </div>
                 ) : (
                 <>
@@ -753,20 +723,6 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                     );
                   })}
                 </div>
-
-                <button
-                  type="button"
-                  className="figma-scan-prompt"
-                  onClick={() => searchRef.current?.focus()}
-                >
-                  <span className="figma-scan-icon">
-                    <FigmaIcon index={25} size={25} />
-                  </span>
-                  <span>
-                    <strong>Keyingi mahsulotni skanerlang</strong>
-                    <small>Yoki <Shortcut>F2</Shortcut> bosib nom, artikul yoki shtrix-kod bo‘yicha qidiring</small>
-                  </span>
-                </button>
                 </>
                 )}
               </div>
@@ -774,7 +730,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
 
             <div className="figma-shortcuts">
               <span className="figma-shortcuts-title">
-                <FigmaIcon index={26} size={20} />
+                <Command size={18} strokeWidth={1.6} aria-hidden="true" />
                 <strong>Tezkor tugmalar</strong>
               </span>
               <span><Shortcut>↑</Shortcut><Shortcut>↓</Shortcut> tanlash</span>
@@ -889,78 +845,6 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                     <div className="figma-customer-mode-actions">
                       <button type="button" onClick={() => props.setCustomerMode("existing")}>Bekor qilish</button>
                       <span>Yangi mijoz sotuv bilan saqlanadi</span>
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              <section className="figma-checkout-section figma-delivery-section">
-                <label className="figma-delivery-toggle">
-                  <input
-                    type="checkbox"
-                    checked={props.needsDelivery}
-                    onChange={(event) => {
-                      const checked = event.target.checked;
-                      props.setNeedsDelivery(checked);
-                      if (checked && !props.deliveryAddress) {
-                        props.setDeliveryAddress(
-                          (props.customerMode === "existing"
-                            ? props.selectedCustomer?.address
-                            : props.newCustomerAddress) || ""
-                        );
-                      }
-                    }}
-                  />
-                  Yetkazib berish kerak
-                </label>
-                {props.needsDelivery && (
-                  <div className="figma-delivery-fields">
-                    <input
-                      value={props.deliveryAddress}
-                      onChange={(event) => props.setDeliveryAddress(event.target.value)}
-                      placeholder="Yetkazib berish manzili (ixtiyoriy)"
-                      aria-label="Yetkazib berish manzili"
-                    />
-                    <div className="figma-delivery-datetime">
-                      <label>
-                        Sana *
-                        <input
-                          type="date"
-                          min={new Date().toISOString().slice(0, 10)}
-                          value={props.deliveryDate}
-                          onChange={(event) => props.setDeliveryDate(event.target.value)}
-                        />
-                      </label>
-                      <label>
-                        Vaqt *
-                        <span className="figma-time-select">
-                          <select
-                            aria-label="Soat"
-                            value={props.deliveryTime.split(":")[0] ?? ""}
-                            onChange={(event) =>
-                              props.setDeliveryTime(`${event.target.value}:${props.deliveryTime.split(":")[1] || "00"}`)
-                            }
-                          >
-                            <option value="" disabled>Soat</option>
-                            {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((hour) => (
-                              <option key={hour} value={hour}>{hour}</option>
-                            ))}
-                          </select>
-                          <span>:</span>
-                          <select
-                            aria-label="Daqiqa"
-                            value={props.deliveryTime.split(":")[1] ?? ""}
-                            onChange={(event) =>
-                              props.setDeliveryTime(`${props.deliveryTime.split(":")[0] || "00"}:${event.target.value}`)
-                            }
-                          >
-                            <option value="" disabled>Daqiqa</option>
-                            {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")).map((minute) => (
-                              <option key={minute} value={minute}>{minute}</option>
-                            ))}
-                          </select>
-                        </span>
-                      </label>
                     </div>
                   </div>
                 )}
@@ -1139,6 +1023,116 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                   </div>
                 </div>
               </section>
+
+              <section className="figma-checkout-section figma-toggle-section">
+                <label className="check figma-toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={saleType === "wholesale"}
+                    onChange={(event) => setSaleType(event.target.checked ? "wholesale" : "retail")}
+                  />
+                  <span className="box">
+                    <Check size={14} strokeWidth={3} aria-hidden="true" />
+                  </span>
+                  <span className="figma-toggle-title">Ulgurji</span>
+                </label>
+              </section>
+
+              <section className="figma-checkout-section figma-toggle-section figma-delivery-section">
+                <label className="check figma-toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={props.needsDelivery}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      props.setNeedsDelivery(checked);
+                      if (checked && !props.deliveryAddress) {
+                        props.setDeliveryAddress(
+                          (props.customerMode === "existing"
+                            ? props.selectedCustomer?.address
+                            : props.newCustomerAddress) || ""
+                        );
+                      }
+                    }}
+                  />
+                  <span className="box">
+                    <Check size={14} strokeWidth={3} aria-hidden="true" />
+                  </span>
+                  <span className="figma-toggle-title">Yetkazib berish kerak</span>
+                </label>
+                {props.needsDelivery && (
+                  <div className="figma-delivery-fields">
+                    <div className="field">
+                      <label className="label" htmlFor="figma-delivery-address">
+                        Yetkazib berish manzili <span className="opt">(ixtiyoriy)</span>
+                      </label>
+                      <div className="control">
+                        <MapPin className="ic" size={16} aria-hidden="true" />
+                        <input
+                          id="figma-delivery-address"
+                          value={props.deliveryAddress}
+                          onChange={(event) => props.setDeliveryAddress(event.target.value)}
+                          placeholder="Manzilni kiriting"
+                        />
+                      </div>
+                    </div>
+                    <div className="figma-delivery-datetime">
+                      <div className="field">
+                        <label className="label" htmlFor="figma-delivery-date">
+                          Sana <span className="req">*</span>
+                        </label>
+                        <div className="control">
+                          <CalendarDays className="ic" size={16} aria-hidden="true" />
+                          <input
+                            id="figma-delivery-date"
+                            type="date"
+                            className="mono"
+                            min={new Date().toISOString().slice(0, 10)}
+                            value={props.deliveryDate}
+                            onChange={(event) => props.setDeliveryDate(event.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="field">
+                        <span className="label" id="figma-delivery-time-label">
+                          Vaqt <span className="req">*</span>
+                        </span>
+                        <div className="control" role="group" aria-labelledby="figma-delivery-time-label">
+                          <Clock className="ic" size={16} aria-hidden="true" />
+                          <select
+                            className="mono"
+                            aria-label="Soat"
+                            value={props.deliveryTime.split(":")[0] ?? ""}
+                            onChange={(event) =>
+                              props.setDeliveryTime(`${event.target.value}:${props.deliveryTime.split(":")[1] || "00"}`)
+                            }
+                          >
+                            <option value="" disabled>Soat</option>
+                            {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map((hour) => (
+                              <option key={hour} value={hour}>{hour}</option>
+                            ))}
+                          </select>
+                          <span className="figma-time-sep">:</span>
+                          <select
+                            className="mono"
+                            aria-label="Daqiqa"
+                            value={props.deliveryTime.split(":")[1] ?? ""}
+                            onChange={(event) =>
+                              props.setDeliveryTime(`${props.deliveryTime.split(":")[0] || "00"}:${event.target.value}`)
+                            }
+                          >
+                            <option value="" disabled>Daqiqa</option>
+                            {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0")).map((minute) => (
+                              <option key={minute} value={minute}>{minute}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+
             </div>
 
             <div className="figma-checkout-footer">
@@ -1174,6 +1168,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                 onClick={props.checkout}
                 disabled={
                   props.submitting ||
+                  !props.paymentChosen ||
                   props.cart.length === 0 ||
                   props.total <= 0 ||
                   props.customerInfoMissing ||
@@ -1183,12 +1178,17 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                   (props.hasDeferredSelection && !props.settlementDate)
                 }
               >
-                <FigmaIcon index={34} size={20} />
+                <Check className="figma-button-icon" size={20} strokeWidth={1.8} aria-hidden="true" />
                 <span>{props.submitting ? "Saqlanmoqda..." : "To‘lash"}</span>
                 <Shortcut>F10</Shortcut>
               </button>
-              <button type="button" className="figma-postpone-button" onClick={postponeCart}>
-                <FigmaIcon index={35} size={18} />
+              <button
+                type="button"
+                className="figma-postpone-button"
+                onClick={postponeCart}
+                disabled={props.submitting || (props.cart.length === 0 && deferredCarts.length === 0)}
+              >
+                <Pause className="figma-button-icon" size={18} strokeWidth={1.8} aria-hidden="true" />
                 <span>Kechiktirish</span>
                 <Shortcut>F9</Shortcut>
               </button>
