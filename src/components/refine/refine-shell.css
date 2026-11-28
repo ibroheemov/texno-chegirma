@@ -155,3 +155,88 @@
   background: var(--text-placeholder);
   background-clip: content-box;
 }
+
+/* Section sub-navigation (Mijozlar): the nav swaps to a panel with a back header + subpages. */
+.refine-ds .rf-subnav {
+  animation: rf-subnav-in var(--dur-slow) var(--ease-out);
+}
+
+.refine-ds .rf-subnav-back {
+  height: 44px;
+  margin-bottom: var(--sp-2);
+  padding: 0 10px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: var(--r-md);
+  color: var(--sb-text-strong);
+  background: transparent;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  transition: background var(--dur) var(--ease);
+}
+
+.refine-ds .rf-subnav-back:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.refine-ds .rf-subnav-back:focus-visible,
+.refine-ds .rf-subnav-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sb-accent);
+}
+
+.refine-ds .rf-subnav-chev {
+  color: var(--sb-text);
+}
+
+.refine-ds .rf-subnav-ic {
+  margin-right: 4px;
+  color: var(--sb-accent);
+}
+
+.refine-ds .sb-item.rf-subnav-item.is-active,
+.refine-ds .sb-item.rf-subnav-item.is-active .ic {
+  color: var(--sb-accent);
+  font-weight: var(--fw-semibold);
+}
+
+.refine-ds .sb-item .rf-sb-chev {
+  color: var(--sb-text);
+  opacity: 0.7;
+}
+
+.refine-ds .sb:not(.is-collapsed) .rf-show-c {
+  display: none;
+}
+
+.refine-ds .sb.is-collapsed .rf-subnav-back {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+
+.refine-ds .sb.is-collapsed .rf-subnav-ic {
+  display: none;
+}
+
+@keyframes rf-subnav-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refine-ds .rf-subnav {
+    animation: none;
+  }
+}

@@ -35,15 +35,13 @@ import { formatDateTime, formatSom, formatUsd } from "@/lib/format";
 import { productImages } from "@/lib/productImages";
 import { exportProductsToExcel } from "@/lib/exportExcel";
 import type { UsdRateInfo } from "@/lib/usdRate";
-import { ProductFormModal } from "@/components/inventory/ProductFormModal";
-import { BarcodeLabelsModal } from "@/components/inventory/BarcodeLabelsModal";
-import {
-  InventoryFilterModal,
-  emptyInventoryFilters,
-  type InventoryFilters,
-} from "@/components/inventory/InventoryFilterModal";
-import { GoodsReceiptModal, type SupplierOption } from "@/components/inventory/GoodsReceiptModal";
-import { ImportProductsModal } from "@/components/inventory/ImportProductsModal";
+import { emptyInventoryFilters, type InventoryFilters } from "@/components/inventory/InventoryFilterModal";
+import type { SupplierOption } from "@/components/inventory/GoodsReceiptModal";
+import { OmborProductFormModal } from "./ombor/OmborProductFormModal";
+import { OmborBarcodeModal } from "./ombor/OmborBarcodeModal";
+import { OmborFilterModal } from "./ombor/OmborFilterModal";
+import { OmborGoodsReceiptModal } from "./ombor/OmborGoodsReceiptModal";
+import { OmborImportModal } from "./ombor/OmborImportModal";
 import { LegacyScope } from "./LegacyScope";
 import "./ombor.css";
 
@@ -800,41 +798,41 @@ export function OmborView({
         </div>
       )}
 
-      <LegacyScope>
-        <ProductFormModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onSaved={() => router.refresh()}
-          categories={categories}
-          product={editing}
-        />
-        <BarcodeLabelsModal open={barcodeOpen} onClose={() => setBarcodeOpen(false)} products={filtered} />
-        <ImportProductsModal
-          open={importOpen}
-          onClose={() => setImportOpen(false)}
-          onImported={() => router.refresh()}
-          categoryNames={categories.map((c) => c.name)}
-        />
-        <GoodsReceiptModal
-          open={!!restockTarget}
-          onClose={() => setRestockTarget(null)}
-          onSaved={() => router.refresh()}
-          suppliers={suppliers}
-          products={initialProducts}
-          storeUsdRate={usdRate}
-          initialProductId={restockTarget?.id}
-        />
-        <InventoryFilterModal
-          open={filterOpen}
-          onClose={() => setFilterOpen(false)}
-          categories={categories}
-          value={filters}
-          onApply={(next) => {
-            setFilters(next);
-            setPage(1);
-          }}
-        />
-        {lightboxProduct && lightboxImages.length > 0 && (
+      <OmborProductFormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSaved={() => router.refresh()}
+        categories={categories}
+        product={editing}
+      />
+      <OmborBarcodeModal open={barcodeOpen} onClose={() => setBarcodeOpen(false)} products={filtered} />
+      <OmborImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => router.refresh()}
+        categoryNames={categories.map((c) => c.name)}
+      />
+      <OmborGoodsReceiptModal
+        open={!!restockTarget}
+        onClose={() => setRestockTarget(null)}
+        onSaved={() => router.refresh()}
+        suppliers={suppliers}
+        products={initialProducts}
+        storeUsdRate={usdRate}
+        initialProductId={restockTarget?.id}
+      />
+      <OmborFilterModal
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        categories={categories}
+        value={filters}
+        onApply={(next) => {
+          setFilters(next);
+          setPage(1);
+        }}
+      />
+      {lightboxProduct && lightboxImages.length > 0 && (
+        <LegacyScope>
           <ImageLightbox
             title={lightboxProduct.name}
             images={lightboxImages}
@@ -842,8 +840,8 @@ export function OmborView({
             onIndexChange={setLightboxIndex}
             onClose={() => setLightboxProduct(null)}
           />
-        )}
-      </LegacyScope>
+        </LegacyScope>
+      )}
     </>
   );
 }

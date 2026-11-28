@@ -1,0 +1,96 @@
+/* New design -> shared modal shell and form helpers (RfModal.tsx). Scoped under .refine-ds; Refine tokens only. */
+
+/* Below z-50, so Old design camera / scanner overlays and the image lightbox still open on top. */
+.refine-ds .rfm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: var(--overlay);
+}
+
+.refine-ds .rfm-overlay.is-nested {
+  z-index: 48;
+}
+
+.refine-ds .rfm-modal {
+  display: flex;
+  max-height: calc(100dvh - 2 * var(--sp-6));
+  flex-direction: column;
+}
+
+.refine-ds .rfm-modal .modal-b {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.refine-ds .rfm-h-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.refine-ds .rfm-select select {
+  padding-right: var(--sp-5);
+}
+
+.refine-ds .rfm-select .ic {
+  margin-left: calc(-1 * var(--sp-6));
+  pointer-events: none;
+}
+
+.refine-ds .rfm-seg {
+  display: grid;
+  width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
+.refine-ds .rfm-seg button {
+  justify-content: center;
+}
+
+.refine-ds .rfm-grid-2,
+.refine-ds .rfm-grid-3 {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.refine-ds .rfm-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.refine-ds .rfm-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 520px) {
+  .refine-ds .rfm-grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.refine-ds .rfm-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.refine-ds .rfm-inline > .control {
+  flex: 1;
+}
+
+.refine-ds .rfm-f-start {
+  margin-right: auto;
+}
+
+.refine-ds .rfm-alert {
+  align-items: center;
+}
+
+.refine-ds .rfm-alert p {
+  margin-top: 0;
+}
