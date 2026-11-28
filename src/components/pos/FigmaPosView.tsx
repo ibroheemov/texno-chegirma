@@ -4,10 +4,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Customer } from "@prisma/client";
-import { Banknote, CalendarDays, Check, ChevronDown, Clock, Command, CreditCard, MapPin, Pause, Plus, ScanBarcode, ScanLine, Tag, Trash2, Wallet, X } from "lucide-react";
+import { Banknote, CalendarDays, Check, ChevronDown, Clock, Command, CreditCard, MapPin, Pause, Plus, ScanBarcode, Tag, Trash2, Wallet, X } from "lucide-react";
 import type { ReceiptSale, ReceiptSettings } from "@/lib/receipt";
 import { formatSom } from "@/lib/format";
 import type { CartLine, PaymentMethod, PriceAdjustment, ProductWithCategory } from "./PosView";
+import { KassaMark, KassaWordmark } from "../refine/KassaMark";
 import "../refine/refine-tokens.css";
 import "./FigmaPosView.css";
 
@@ -570,7 +571,12 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                     <svg className="figma-empty-outline" aria-hidden="true">
                       <rect />
                     </svg>
-                    <ScanLine className="figma-empty-icon" size={40} strokeWidth={1.5} aria-hidden="true" />
+                    <div className="figma-empty-icon figma-empty-logo">
+                      <KassaMark mono size={48} />
+                      <span className="figma-empty-wordmark">
+                        <KassaWordmark size={48} />
+                      </span>
+                    </div>
                     <h2>Savatcha hozircha bo‘sh</h2>
                     <p>Tovarlarni qidirish uchun “/” tugmasini bosing yoki tovarlarni skanerlang</p>
                   </div>
