@@ -1,0 +1,120 @@
+/* New design -> Kategoriyalar. Scoped under .refine-ds; uses only Refine tokens. */
+
+.refine-ds .kt-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-4);
+}
+
+.refine-ds .kt-kpi {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.refine-ds .kt-kpi-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.refine-ds .kt-search {
+  width: 300px;
+  max-width: 100%;
+}
+
+.refine-ds .kt-sort {
+  width: 250px;
+  max-width: 100%;
+}
+
+.refine-ds .kt-sort select {
+  padding-right: var(--sp-5);
+}
+
+.refine-ds .kt-sort .ic {
+  margin-left: calc(-1 * var(--sp-6));
+  pointer-events: none;
+}
+
+.refine-ds .tbl .prod > div {
+  max-width: 360px;
+}
+
+.refine-ds .kt-col-share {
+  width: 34%;
+}
+
+.refine-ds .kt-prog {
+  max-width: 260px;
+}
+
+.refine-ds .tbl .kt-col-act {
+  width: 104px;
+}
+
+.refine-ds .kt-acts {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.refine-ds .row-act.kt-danger:hover {
+  color: var(--danger-text);
+  background: var(--danger-soft);
+}
+
+.refine-ds .kt-foot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning-text);
+  font-weight: var(--fw-medium);
+}
+
+.refine-ds .kt-foot-link:hover {
+  text-decoration: underline;
+}
+
+.refine-ds .kt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: var(--overlay);
+}
+
+.refine-ds .kt-confirm-body {
+  align-items: center;
+  gap: var(--sp-2);
+  padding-top: 28px;
+  text-align: center;
+}
+
+.refine-ds .kt-alert {
+  width: 100%;
+  margin-top: var(--sp-2);
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+  text-align: left;
+}
+
+.refine-ds .kt-alert p {
+  margin: 0;
+  color: var(--danger-text);
+}
+
+@media (max-width: 720px) {
+  .refine-ds .kt-col-share {
+    display: none;
+  }
+
+  .refine-ds .kt-search,
+  .refine-ds .kt-sort {
+    width: 100%;
+  }
+}

@@ -92,6 +92,9 @@ model Store {
   handovers        CashHandover[]
   telegramSessions TelegramSession[]
   salaryPayments   SalaryPayment[]
+  customerGroups   CustomerGroup[]
+  customerTags     CustomerTag[]
+  loyaltyProgram   LoyaltyProgram?
   layawayOrders    LayawayOrder[]
 }
 
@@ -208,6 +211,10 @@ model Customer {
   // Set when the customer registered through the Telegram bot.
   telegramChatId String?
   createdAt      DateTime @default(now())
+  // New design -> Mijozlar -> Guruhlar va teglar.
+  groupId        String?
+  group          CustomerGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  tags           CustomerTag[]
 
   sales         Sale[]
   debts         CreditLedger[]
@@ -215,6 +222,45 @@ model Customer {
 
   @@unique([storeId, telegramChatId])
   @@index([storeId, name])
+  @@index([groupId])
+}
+
+// A customer belongs to at most one group (e.g. "Ulgurji", "Doimiy mijozlar").
+model CustomerGroup {
+  id          String     @id @default(cuid())
+  storeId     String
+  store       Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
+  color       String     @default("blue")
+  description String?
+  createdAt   DateTime   @default(now())
+  customers   Customer[]
+
+  @@unique([storeId, name])
+}
+
+// Free-form labels; a customer can have many tags.
+model CustomerTag {
+  id        String     @id @default(cuid())
+  storeId   String
+  store     Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String
+  color     String     @default("blue")
+  createdAt DateTime   @default(now())
+  customers Customer[]
+
+  @@unique([storeId, name])
+}
+
+// New design -> Mijozlar -> Sodiqlik dasturi. Tiers by total purchases:
+// tiers = [{ id, name, minSpent, discountPercent, color }]. Not applied at checkout yet.
+model LoyaltyProgram {
+  id        String   @id @default(cuid())
+  storeId   String   @unique
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  enabled   Boolean  @default(true)
+  tiers     Json
+  updatedAt DateTime @updatedAt
 }
 
 model Sale {

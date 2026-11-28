@@ -54,11 +54,11 @@ const iconFiles = [
 const navLinks = [
   { href: "/admin", label: "Kassa", icon: 0 },
   { href: "/admin/yangi-dizayn/ombor", label: "Ombor", icon: 1 },
-  { href: "/admin/mijozlar", label: "Mijozlar", icon: 2 },
+  { href: "/admin/yangi-dizayn/mijozlar", label: "Mijozlar", icon: 2 },
   { href: "/admin/moliya", label: "Moliya", icon: 3 },
   { href: "/admin/nasiya", label: "Nasiya", icon: 4 },
   { href: "/admin/xodimlar", label: "Xodimlar", icon: 5 },
-  { href: "/admin/kategoriyalar", label: "Kategoriyalar", icon: 6 },
+  { href: "/admin/yangi-dizayn/kategoriyalar", label: "Kategoriyalar", icon: 6 },
   { href: "/admin/sozlamalar", label: "Sozlamalar", icon: 7 },
 ];
 
