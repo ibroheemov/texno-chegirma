@@ -191,6 +191,19 @@ function SectionHeading({
   );
 }
 
+const AVATAR_TONES = ["av-1", "av-2", "av-3", "av-4"];
+
+function avatarTone(id: string) {
+  let sum = 0;
+  for (let index = 0; index < id.length; index++) sum += id.charCodeAt(index);
+  return AVATAR_TONES[sum % AVATAR_TONES.length];
+}
+
+function customerInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "?") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
+
 export function FigmaPosView(props: FigmaPosViewProps) {
   const router = useRouter();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -434,7 +447,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
           <div className="figma-topbar-left">
             <div className="figma-toolbar">
               <div className="figma-search-wrap">
-                <label className="figma-search control control-soft">
+                <label className="figma-search control control-soft control-lg">
                   <FigmaIcon index={12} size={24} />
                   <input
                     ref={searchRef}
@@ -768,7 +781,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                 </SectionHeading>
                 {props.customerMode === "existing" ? (
                   <div className="figma-customer-search-wrap">
-                    <label className="figma-customer-search">
+                    <label className="figma-customer-search control control-soft control-lg">
                       <FigmaIcon index={28} size={18} />
                       <input
                         ref={customerRef}
@@ -799,12 +812,15 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                       )}
                     </label>
                     {props.customerDropdownOpen && !props.selectedCustomer && (
-                      <div className="figma-customer-results">
+                      <div className="figma-customer-results menu" role="listbox" aria-label="Mijozlar">
                         {props.filteredCustomers.length ? (
                           props.filteredCustomers.map((customer) => (
                             <button
                               type="button"
+                              role="option"
+                              aria-selected={false}
                               key={customer.id}
+                              className="menu-item"
                               onMouseDown={(event) => event.preventDefault()}
                               onClick={() => {
                                 props.setCustomerId(customer.id);
@@ -812,42 +828,66 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                                 props.setCustomerDropdownOpen(false);
                               }}
                             >
-                              <strong>{customer.name}</strong>
-                              <small>{customer.phone || "Telefon ko'rsatilmagan"}</small>
+                              <span className={`av av-xs ${avatarTone(customer.id)}`} aria-hidden="true">
+                                {customerInitials(customer.name)}
+                              </span>
+                              <span className="rf-ellipsis">{customer.name}</span>
+                              {customer.phone ? <span className="end mono">{customer.phone}</span> : null}
                             </button>
                           ))
                         ) : (
-                          <p>Mijoz topilmadi</p>
+                          <div className="menu-item is-empty">
+                            Mijoz topilmadi —
+                            <button
+                              type="button"
+                              className="menu-item-link"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                props.setCustomerDropdownOpen(false);
+                                props.setCustomerMode("new");
+                              }}
+                            >
+                              yangi mijoz qo‘shish
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="figma-new-customer-fields">
-                    <input
-                      value={props.newCustomerName}
-                      onChange={(event) => props.setNewCustomerName(event.target.value)}
-                      placeholder="Ism familiya"
-                      aria-label="Yangi mijoz ismi"
-                    />
-                    <input
-                      value={props.newCustomerPhone}
-                      onChange={(event) => props.setNewCustomerPhone(event.target.value)}
-                      placeholder="Telefon raqami (ixtiyoriy)"
-                      aria-label="Yangi mijoz telefoni"
-                    />
-                    <input
-                      value={props.newCustomerAddress}
-                      onChange={(event) => props.setNewCustomerAddress(event.target.value)}
-                      placeholder="MFY (Manzil)"
-                      aria-label="Yangi mijoz manzili"
-                    />
-                    <input
-                      value={props.newCustomerNote}
-                      onChange={(event) => props.setNewCustomerNote(event.target.value)}
-                      placeholder="Izoh (ixtiyoriy)"
-                      aria-label="Yangi mijoz izohi"
-                    />
+                    <label className="control control-soft">
+                      <input
+                        value={props.newCustomerName}
+                        onChange={(event) => props.setNewCustomerName(event.target.value)}
+                        placeholder="Ism familiya"
+                        aria-label="Yangi mijoz ismi"
+                      />
+                    </label>
+                    <label className="control control-soft">
+                      <input
+                        value={props.newCustomerPhone}
+                        onChange={(event) => props.setNewCustomerPhone(event.target.value)}
+                        placeholder="Telefon raqami (ixtiyoriy)"
+                        aria-label="Yangi mijoz telefoni"
+                      />
+                    </label>
+                    <label className="control control-soft">
+                      <input
+                        value={props.newCustomerAddress}
+                        onChange={(event) => props.setNewCustomerAddress(event.target.value)}
+                        placeholder="MFY (Manzil)"
+                        aria-label="Yangi mijoz manzili"
+                      />
+                    </label>
+                    <label className="control control-soft">
+                      <input
+                        value={props.newCustomerNote}
+                        onChange={(event) => props.setNewCustomerNote(event.target.value)}
+                        placeholder="Izoh (ixtiyoriy)"
+                        aria-label="Yangi mijoz izohi"
+                      />
+                    </label>
                     <div className="figma-customer-mode-actions">
                       <button type="button" onClick={() => props.setCustomerMode("existing")}>Bekor qilish</button>
                       <span>Yangi mijoz sotuv bilan saqlanadi</span>
