@@ -683,7 +683,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                           <strong>{line.product.sku || "—"}</strong>
                           <small>{line.product.sku || "—"}</small>
                         </span>
-                        <div className="control figma-quantity-stepper">
+                        <div className="control control-lg figma-quantity-stepper">
                           <button
                             type="button"
                             className="spin"
