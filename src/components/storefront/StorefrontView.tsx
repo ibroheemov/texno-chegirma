@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { formatSom } from "@/lib/format";
 import { INSTALLMENT_MONTHS, installmentMonthlyPayment, installmentUnitPrice } from "@/lib/installment";
+import { discountPercent, effectivePrice } from "@/lib/productPrice";
 import { cn } from "@/lib/cn";
 
 type ProductWithCategory = Product & { category: Category | null };
@@ -50,7 +51,7 @@ export function StorefrontView({
   }
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
-  const totalPrice = cart.reduce((s, l) => s + l.product.price * l.qty, 0);
+  const totalPrice = cart.reduce((s, l) => s + effectivePrice(l.product) * l.qty, 0);
 
   return (
     <div className={cn("flex flex-col gap-4", totalQty > 0 && "pb-20")}>
@@ -118,11 +119,34 @@ export function StorefrontView({
               <ShoppingCart size={28} />
             </div>
             <p className="line-clamp-2 text-sm font-semibold leading-snug">{p.name}</p>
-            <Badge tone="accent" className="w-fit">
-              {p.stock} dona
-            </Badge>
-            <div className="mt-auto flex items-center justify-between">
-              <span className="text-sm font-bold">{formatSom(p.price)}</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <Badge tone="accent" className="w-fit">
+                {p.stock} dona
+              </Badge>
+              {discountPercent(p) !== null && (
+                <Badge tone="danger" className="w-fit">
+                  -{discountPercent(p)}%
+                </Badge>
+              )}
+            </div>
+            <div className="mt-auto flex items-end justify-between gap-2">
+              <div className="flex min-w-0 flex-col">
+                {discountPercent(p) !== null && (
+                  <span className="text-xs text-muted line-through">{formatSom(p.price)}</span>
+                )}
+                <span className={cn("text-sm font-bold", discountPercent(p) !== null && "text-danger")}>
+                  {formatSom(effectivePrice(p))}
+                </span>
+                {effectivePrice(p) > 0 && (
+                  // The lowest monthly payment (the 12-month one) as a highlighted "from" label.
+                  <span className="mt-1 w-fit rounded-md bg-info-soft px-1.5 py-0.5 text-[11px] font-semibold leading-tight text-info">
+                    {formatSom(
+                      installmentMonthlyPayment(installmentUnitPrice(effectivePrice(p), p.installmentMarkups, 12), 12)
+                    )}{" "}
+                    dan
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => addToCart(p)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent"
@@ -206,13 +230,13 @@ function CartDrawer({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const total = cart.reduce((s, l) => s + l.product.price * l.qty, 0);
+  const total = cart.reduce((s, l) => s + effectivePrice(l.product) * l.qty, 0);
   // With an installment each product's price is raised by its own markup for that length.
   const installmentTotalFor = (months: number) =>
-    cart.reduce((s, l) => s + installmentUnitPrice(l.product.price, l.product.installmentMarkups, months) * l.qty, 0);
+    cart.reduce((s, l) => s + installmentUnitPrice(effectivePrice(l.product), l.product.installmentMarkups, months) * l.qty, 0);
   const isInstallment = paymentMethod === "INSTALLMENT";
   const unitPrice = (l: CartLine) =>
-    isInstallment ? installmentUnitPrice(l.product.price, l.product.installmentMarkups, installmentMonths) : l.product.price;
+    isInstallment ? installmentUnitPrice(effectivePrice(l.product), l.product.installmentMarkups, installmentMonths) : effectivePrice(l.product);
   const payableTotal = isInstallment ? installmentTotalFor(installmentMonths) : total;
 
   function changeQty(productId: string, delta: number) {
@@ -283,7 +307,7 @@ function CartDrawer({
         telegramInitData: window.Telegram?.WebApp?.initData || undefined,
         paymentMethod: paymentMethod === "INSTALLMENT" ? "CUSTOM" : paymentMethod,
         installmentMonths: paymentMethod === "INSTALLMENT" ? installmentMonths : undefined,
-        items: cart.map((l) => ({ productId: l.product.id, name: l.product.name, qty: l.qty, price: l.product.price })),
+        items: cart.map((l) => ({ productId: l.product.id, name: l.product.name, qty: l.qty, price: effectivePrice(l.product) })),
       }),
     });
     setSubmitting(false);
