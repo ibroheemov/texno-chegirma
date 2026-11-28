@@ -106,7 +106,11 @@ export async function POST(req: NextRequest) {
           updateData.salePrice = data.salePrice;
         }
         if (mappedFields.has("costPrice") && costCurrencyUsd) updateData.usdRate = data.usdRate;
-        await prisma.product.update({ where: { id: existingProduct.id }, data: updateData });
+        // Imported prices are hand-set: drop the dollar bases so syncUsdPrices re-derives them.
+        await prisma.product.update({
+          where: { id: existingProduct.id },
+          data: { ...updateData, priceUsd: null, salePriceUsd: null, barcodePriceUsd: null },
+        });
         updated++;
       } else {
         await prisma.product.create({ data: { ...data, storeId, sku } });

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { syncUsdPrices } from "@/lib/usdRate";
+import { installmentMarkupsForStorage } from "@/lib/installment";
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[id]">) {
   const session = await getSession();
@@ -41,6 +42,11 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
       onSale: Boolean(body.onSale),
       salePrice: body.onSale && body.salePrice ? Number(body.salePrice) : null,
       usdRate,
+      installmentMarkups: installmentMarkupsForStorage(body.installmentMarkups) ?? Prisma.JsonNull,
+      // A hand-saved price is the new truth: drop the dollar bases so syncUsdPrices re-derives them.
+      priceUsd: null,
+      salePriceUsd: null,
+      barcodePriceUsd: null,
     },
   });
 

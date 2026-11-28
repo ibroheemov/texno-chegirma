@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { formatSom } from "@/lib/format";
+import { INSTALLMENT_MONTHS, installmentMonthlyPayment, installmentUnitPrice } from "@/lib/installment";
+import { discountPercent, effectivePrice } from "@/lib/productPrice";
 import { cn } from "@/lib/cn";
 
 type ProductWithCategory = Product & { category: Category | null };
@@ -49,7 +51,7 @@ export function StorefrontView({
   }
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
-  const totalPrice = cart.reduce((s, l) => s + l.product.price * l.qty, 0);
+  const totalPrice = cart.reduce((s, l) => s + effectivePrice(l.product) * l.qty, 0);
 
   return (
     <div className={cn("flex flex-col gap-4", totalQty > 0 && "pb-20")}>
@@ -117,11 +119,34 @@ export function StorefrontView({
               <ShoppingCart size={28} />
             </div>
             <p className="line-clamp-2 text-sm font-semibold leading-snug">{p.name}</p>
-            <Badge tone="accent" className="w-fit">
-              {p.stock} dona
-            </Badge>
-            <div className="mt-auto flex items-center justify-between">
-              <span className="text-sm font-bold">{formatSom(p.price)}</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <Badge tone="accent" className="w-fit">
+                {p.stock} dona
+              </Badge>
+              {discountPercent(p) !== null && (
+                <Badge tone="danger" className="w-fit">
+                  -{discountPercent(p)}%
+                </Badge>
+              )}
+            </div>
+            <div className="mt-auto flex items-end justify-between gap-2">
+              <div className="flex min-w-0 flex-col">
+                {discountPercent(p) !== null && (
+                  <span className="text-xs text-muted line-through">{formatSom(p.price)}</span>
+                )}
+                <span className={cn("text-sm font-bold", discountPercent(p) !== null && "text-danger")}>
+                  {formatSom(effectivePrice(p))}
+                </span>
+                {effectivePrice(p) > 0 && (
+                  // The lowest monthly payment (the 12-month one) as a highlighted "from" label.
+                  <span className="mt-1 w-fit rounded-md bg-info-soft px-1.5 py-0.5 text-[11px] font-semibold leading-tight text-info">
+                    {formatSom(
+                      installmentMonthlyPayment(installmentUnitPrice(effectivePrice(p), p.installmentMarkups, 12), 12)
+                    )}{" "}
+                    dan
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => addToCart(p)}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent"
@@ -205,7 +230,14 @@ function CartDrawer({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const total = cart.reduce((s, l) => s + l.product.price * l.qty, 0);
+  const total = cart.reduce((s, l) => s + effectivePrice(l.product) * l.qty, 0);
+  // With an installment each product's price is raised by its own markup for that length.
+  const installmentTotalFor = (months: number) =>
+    cart.reduce((s, l) => s + installmentUnitPrice(effectivePrice(l.product), l.product.installmentMarkups, months) * l.qty, 0);
+  const isInstallment = paymentMethod === "INSTALLMENT";
+  const unitPrice = (l: CartLine) =>
+    isInstallment ? installmentUnitPrice(effectivePrice(l.product), l.product.installmentMarkups, installmentMonths) : effectivePrice(l.product);
+  const payableTotal = isInstallment ? installmentTotalFor(installmentMonths) : total;
 
   function changeQty(productId: string, delta: number) {
     setCart((prev) =>
@@ -275,7 +307,7 @@ function CartDrawer({
         telegramInitData: window.Telegram?.WebApp?.initData || undefined,
         paymentMethod: paymentMethod === "INSTALLMENT" ? "CUSTOM" : paymentMethod,
         installmentMonths: paymentMethod === "INSTALLMENT" ? installmentMonths : undefined,
-        items: cart.map((l) => ({ productId: l.product.id, name: l.product.name, qty: l.qty, price: l.product.price })),
+        items: cart.map((l) => ({ productId: l.product.id, name: l.product.name, qty: l.qty, price: effectivePrice(l.product) })),
       }),
     });
     setSubmitting(false);
@@ -330,7 +362,7 @@ function CartDrawer({
                     <div key={l.product.id} className="flex items-center gap-2 rounded-lg bg-surface-muted p-2">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{l.product.name}</p>
-                        <p className="text-xs text-muted">{formatSom(l.product.price)}</p>
+                        <p className="text-xs text-muted">{formatSom(unitPrice(l))}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <button
@@ -360,7 +392,7 @@ function CartDrawer({
 
               <div className="mt-4 flex items-center justify-between border-t border-dashed border-border pt-3 text-base">
                 <span className="font-semibold">JAMI</span>
-                <span className="font-bold text-accent">{formatSom(total)}</span>
+                <span className="font-bold text-accent">{formatSom(payableTotal)}</span>
               </div>
 
               <div className="mt-4 flex flex-col gap-3 pb-5">
@@ -433,7 +465,7 @@ function CartDrawer({
                   <div className="rounded-lg bg-surface-muted p-3">
                     <p className="text-xs font-medium text-muted">Necha oyga bo&apos;lib to&apos;lamoqchisiz?</p>
                     <div className="mt-2 grid grid-cols-3 gap-2">
-                      {([3, 6, 12] as const).map((m) => (
+                      {INSTALLMENT_MONTHS.map((m) => (
                         <button
                           key={m}
                           type="button"
@@ -447,10 +479,15 @@ function CartDrawer({
                         </button>
                       ))}
                     </div>
+                    {payableTotal !== total && (
+                      <p className="mt-2 text-xs text-muted">
+                        Naqd narx {formatSom(total)} · muddatli narx {formatSom(payableTotal)}
+                      </p>
+                    )}
                     <p className="mt-2 text-sm">
                       Oyiga to&apos;lov:{" "}
                       <span className="font-bold text-accent">
-                        {formatSom(Math.ceil(total / installmentMonths))}
+                        {formatSom(installmentMonthlyPayment(payableTotal, installmentMonths))}
                       </span>
                     </p>
                   </div>

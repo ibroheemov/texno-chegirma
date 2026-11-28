@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { SUPPLIER_PAYMENT_CATEGORY } from "@/lib/stats";
 import { syncUsdPrices } from "@/lib/usdRate";
+import { installmentMarkupsForStorage } from "@/lib/installment";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
         onSale: Boolean(body.onSale),
         salePrice: body.onSale && body.salePrice ? Number(body.salePrice) : null,
         usdRate: productUsdRate,
+        installmentMarkups: installmentMarkupsForStorage(body.installmentMarkups) ?? undefined,
       },
     });
 

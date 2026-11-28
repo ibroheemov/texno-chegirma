@@ -610,27 +610,23 @@ export function PosView({
             </button>
           ))}
           <span className="mx-1 w-px self-stretch bg-border" />
-          <button
-            onClick={() => setCategoryId(undefined)}
+          {/* A select instead of one chip per category: a long category list used to fill the whole screen. */}
+          <select
+            value={categoryId ?? ""}
+            onChange={(e) => setCategoryId(e.target.value || undefined)}
+            aria-label="Kategoriya"
             className={cn(
-              "rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted",
-              !categoryId && "border-accent bg-accent-soft text-accent"
+              "h-[30px] max-w-[220px] rounded-full border border-border bg-background px-3 text-xs font-medium text-muted outline-none focus:border-accent",
+              categoryId && "bg-accent-soft text-accent"
             )}
           >
-            Kategoriyasiz
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setCategoryId(c.id)}
-              className={cn(
-                "rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted",
-                categoryId === c.id && "border-accent bg-accent-soft text-accent"
-              )}
-            >
-              {c.name}
-            </button>
-          ))}
+            <option value="">Barcha kategoriyalar</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="relative mt-4">

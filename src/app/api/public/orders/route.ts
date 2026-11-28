@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyNewOrder } from "@/lib/telegram";
 import { verifyWebAppInitData } from "@/lib/telegramWebApp";
+import { applyInstallmentMarkup } from "@/lib/installment";
 
 export async function POST(req: NextRequest) {
   const store = await prisma.store.findFirst();
@@ -45,7 +46,19 @@ export async function POST(req: NextRequest) {
       : null;
 
   const months = [3, 6, 12].includes(Number(installmentMonths)) ? Number(installmentMonths) : null;
-  const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+
+  // An installment raises each product's price by its own markup for that length. The percentages
+  // are read from the database, never from the request, and the stored lines carry the raised
+  // prices so the lines, the total and the monthly payment all agree.
+  let orderItems = items;
+  if (months) {
+    const products = await prisma.product.findMany({
+      where: { storeId: store.id, id: { in: items.map((i) => i.productId) } },
+      select: { id: true, installmentMarkups: true },
+    });
+    orderItems = applyInstallmentMarkup(items, new Map(products.map((p) => [p.id, p.installmentMarkups])), months);
+  }
+  const total = orderItems.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   const order = await prisma.onlineOrder.create({
     data: {
@@ -58,14 +71,14 @@ export async function POST(req: NextRequest) {
       customerLng: Number.isFinite(customerLng) ? customerLng : null,
       paymentMethod: months ? "CUSTOM" : paymentMethod === "CARD" ? "CARD" : "CASH",
       installmentMonths: months,
-      items,
+      items: orderItems,
       total,
     },
   });
 
   if (store.notifyNewOrders) {
     notifyNewOrder(
-      { storeName: store.name, customerName, customerPhone, extraPhone, total, items, installmentMonths: months },
+      { storeName: store.name, customerName, customerPhone, extraPhone, total, items: orderItems, installmentMonths: months },
       { token: store.telegramBotToken, chatId: store.telegramChatId }
     ).catch(() => {});
   }
