@@ -140,13 +140,13 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
 
   return (
     <>
-      <div className="mj-kpis">
+      <div className="bo-kpis">
         {kpis.map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className="card kpi mj-kpi">
+          <div key={label} className="card kpi bo-kpi">
             <span className={`ic-tile${tone ? ` ${tone}` : ""}`}>
               <Icon className="ic" size={20} />
             </span>
-            <div className="mj-kpi-body">
+            <div className="bo-kpi-body">
               <span className="kpi-label">{label}</span>
               <span className="kpi-val">{value}</span>
             </div>
@@ -154,7 +154,7 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
         ))}
       </div>
 
-      <div className="card mj-card">
+      <div className="card bo-card">
         <div className="tbl-bar">
           <div className="seg seg-sm" role="group" aria-label="Davr">
             {periodOptions.map(([key, label]) => (
@@ -171,7 +171,7 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
           <span className="grow" />
           {variant === "orders" && (
             <>
-              <div className="control control-sm mj-select">
+              <div className="control control-sm bo-select">
                 <select aria-label="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
                   <option value="all">Barcha status</option>
                   {(Object.keys(STATUS_LABEL) as OrderStatus[]).map((s) => (
@@ -182,7 +182,7 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
                 </select>
                 <ChevronDown className="ic" size={14} />
               </div>
-              <div className="control control-sm mj-select">
+              <div className="control control-sm bo-select">
                 <select
                   aria-label="To‘lov"
                   value={payment}
@@ -199,7 +199,7 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
         </div>
 
         {loading ? (
-          <div className="mj-loading">
+          <div className="bo-loading">
             <span className="spinner spinner-lg" role="status" aria-label="Yuklanmoqda" />
           </div>
         ) : orders.length === 0 ? (
@@ -212,7 +212,7 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
           </div>
         ) : (
           <div className="tbl-wrap">
-            <table className="tbl mj-tbl mj-tbl-tight">
+            <table className="tbl bo-tbl bo-tbl-tight">
               <thead>
                 <tr>
                   <th>#ID</th>
@@ -229,9 +229,9 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
               <tbody>
                 {orders.map((o) => (
                   <tr key={o.id}>
-                    <td className="mono mj-muted">#{o.number}</td>
+                    <td className="mono bo-muted">#{o.number}</td>
                     <td>
-                      <div className="mj-person">
+                      <div className="bo-person">
                         <div>
                           <b>
                             {o.customerName}
@@ -243,7 +243,7 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
                             )}
                           </b>
                           <small>
-                            <span className="mj-inline mono">
+                            <span className="bo-inline mono">
                               <Phone className="ic" size={12} />
                               {o.customerPhone}
                             </span>
@@ -251,9 +251,9 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
                         </div>
                       </div>
                     </td>
-                    <td className="mj-muted mj-wrap">
+                    <td className="bo-muted bo-wrap">
                       {o.customerAddress ? (
-                        <span className="mj-inline">
+                        <span className="bo-inline">
                           <MapPin className="ic" size={13} />
                           {o.customerAddress}
                         </span>
@@ -261,7 +261,7 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
                         "—"
                       ) : null}
                       {o.customerLat != null && o.customerLng != null && (
-                        <span className="mj-map-links">
+                        <span className="bo-map-links">
                           <a href={yandexMapsUrl(o.customerLat, o.customerLng)} target="_blank" rel="noopener noreferrer">
                             Yandex
                           </a>
@@ -272,17 +272,17 @@ export function OrdersPanel({ variant }: { variant: Variant }) {
                       )}
                     </td>
                     <td className="r mono strong">{formatSom(o.total)}</td>
-                    <td className="mj-muted">{PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}</td>
+                    <td className="bo-muted">{PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}</td>
                     <td>
                       <span className={`badge ${STATUS_TONE[o.status]}`}>
                         <span className="bd" />
                         {STATUS_LABEL[o.status]}
                       </span>
                     </td>
-                    <td className="mj-muted mono">{o.deliveryDate ? formatDateTime(o.deliveryDate) : "—"}</td>
-                    <td className="mj-muted mono">{formatDateTime(o.createdAt)}</td>
+                    <td className="bo-muted mono">{o.deliveryDate ? formatDateTime(o.deliveryDate) : "—"}</td>
+                    <td className="bo-muted mono">{formatDateTime(o.createdAt)}</td>
                     <td>
-                      <div className="mj-order-actions">
+                      <div className="bo-order-actions">
                         <OrderActions
                           status={o.status}
                           disabled={actingId === o.id}
