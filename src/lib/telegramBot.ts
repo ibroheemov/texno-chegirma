@@ -21,6 +21,7 @@ type TgMessage = {
   from?: TgUser;
   text?: string;
   contact?: TgContact;
+  location?: { latitude: number; longitude: number };
 };
 type TgCallbackQuery = {
   id: string;
@@ -51,6 +52,8 @@ const BTN_MY_ORDERS = "📋 Buyurtmalarim";
 const BTN_CART = "🛒 Savatcha";
 const BTN_LOCATION = "📍 Do'kon lokatsiyasi";
 const BTN_HELP = "👨‍🔧 Yordam";
+const BTN_SEND_LOCATION = "📍 Joylashuvni yuborish";
+const BTN_SKIP_ADDRESS = "O'tkazib yuborish";
 const SUPPORT_TELEGRAM_USERNAME = "zafarovich_14";
 
 // The bot's main menu is a persistent keyboard under the chat input; the
@@ -186,12 +189,18 @@ const ORDER_STATUS_LABEL: Record<string, string> = {
 };
 
 async function showMyOrders(store: Store, chatId: string, customerPhone: string | null) {
-  const orders = customerPhone
-    ? await prisma.onlineOrder.findMany({
-        where: { storeId: store.id, customerPhone },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      })
+  // Phones are stored as typed (spaces, dashes...), so match on the last 9 digits in JS.
+  const tail = (customerPhone ?? "").replace(/\D/g, "").slice(-9);
+  const orders = tail
+    ? (
+        await prisma.onlineOrder.findMany({
+          where: { storeId: store.id },
+          orderBy: { createdAt: "desc" },
+          take: 500,
+        })
+      )
+        .filter((o) => o.customerPhone.replace(/\D/g, "").endsWith(tail))
+        .slice(0, 10)
     : [];
 
   if (orders.length === 0) {
@@ -282,13 +291,26 @@ async function registerCustomer(
   });
 }
 
+// Turns a shared location into a readable address (best effort; null on failure).
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=uz`,
+      { headers: { "User-Agent": "savdo-app" }, signal: AbortSignal.timeout(4000) }
+    );
+    const data = await res.json();
+    return typeof data?.display_name === "string" ? data.display_name : null;
+  } catch {
+    return null;
+  }
+}
+
 async function askAddress(store: Store, chatId: string, savedAddress?: string | null) {
   const prompt = savedAddress
-    ? `Saqlangan manzil: ${savedAddress}\n\nShu manzilga yetkazamiz. Boshqa manzil yozing yoki "O'tkazib yuborish" tugmasini bosing:`
-    : "Yetkazib berish manzilini yozing (ixtiyoriy):";
+    ? `Saqlangan manzil: ${savedAddress}\n\nShu manzilga yetkazamiz. Boshqa manzil yozing, "${BTN_SEND_LOCATION}" tugmasi orqali joylashuvingizni yuboring yoki "${BTN_SKIP_ADDRESS}" tugmasini bosing:`
+    : `Yetkazib berish manzilini yozing yoki "${BTN_SEND_LOCATION}" tugmasi orqali joylashuvingizni yuboring (ixtiyoriy):`;
   await sendMessage(store.telegramBotToken!, chatId, prompt, {
-    inlineKeyboard: [[{ text: "O'tkazib yuborish", callback_data: "checkout:skipaddress" }]],
-    removeKeyboard: true,
+    locationKeyboard: { locationText: BTN_SEND_LOCATION, skipText: BTN_SKIP_ADDRESS },
   });
 }
 
@@ -306,7 +328,7 @@ async function askPaymentMethod(store: Store, chatId: string) {
 async function confirmOrder(
   store: Store,
   chatId: string,
-  session: { customerName: string | null; customerPhone: string | null; customerAddress: string | null; paymentMethod: string | null },
+  session: { customerName: string | null; customerPhone: string | null; customerAddress: string | null; customerLat: number | null; paymentMethod: string | null },
   cart: Record<string, number>
 ) {
   const ids = Object.keys(cart).filter((id) => cart[id] > 0);
@@ -324,6 +346,7 @@ async function confirmOrder(
     `Jami: *${formatSom(total)}*`,
     `To'lov: ${session.paymentMethod === "CARD" ? "Karta" : "Naqd"}`,
     session.customerAddress ? `Manzil: ${session.customerAddress}` : null,
+    session.customerLat != null ? "📍 Joylashuv yuborildi" : null,
   ].filter(Boolean);
 
   await sendMessage(store.telegramBotToken!, chatId, lines.join("\n"), {
@@ -496,6 +519,8 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
         where: { id: session.id },
         data: {
           state: "checkout_address",
+          customerLat: null,
+          customerLng: null,
           customerName: customer.name,
           customerPhone: customer.phone,
           customerAddress: customer.address,
@@ -520,7 +545,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
     }
     if (data === "checkout:cancel") {
       await prisma.telegramSession.update({ where: { id: session.id }, data: { state: "browsing" } });
-      await sendMessage(token, chatId, "Bekor qilindi. Savatcha saqlanib qoldi.");
+      await sendMessage(token, chatId, "Bekor qilindi. Savatcha saqlanib qoldi.", { replyKeyboard: mainKeyboard(store) });
       return;
     }
     if (data === "checkout:confirm") {
@@ -532,6 +557,17 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
 
   const message = update.message;
   if (!message) return;
+
+  if (message.location && session.state === "checkout_address") {
+    const { latitude, longitude } = message.location;
+    const address = (await reverseGeocode(latitude, longitude)) ?? session.customerAddress;
+    await prisma.telegramSession.update({
+      where: { id: session.id },
+      data: { customerLat: latitude, customerLng: longitude, customerAddress: address, state: "checkout_payment" },
+    });
+    await askPaymentMethod(store, chatId);
+    return;
+  }
 
   const text = message.text?.trim();
   if (!text) return;
@@ -580,7 +616,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
   if (session.state === "checkout_address") {
     await prisma.telegramSession.update({
       where: { id: session.id },
-      data: { customerAddress: text, state: "checkout_payment" },
+      data: text === BTN_SKIP_ADDRESS ? { state: "checkout_payment" } : { customerAddress: text, state: "checkout_payment" },
     });
     await askPaymentMethod(store, chatId);
     return;
@@ -593,7 +629,7 @@ export async function handleTelegramUpdate(storeId: string, update: TgUpdate) {
 async function placeOrder(
   store: Store,
   chatId: string,
-  session: { id: string; customerName: string | null; customerPhone: string | null; customerAddress: string | null; paymentMethod: string | null },
+  session: { id: string; customerName: string | null; customerPhone: string | null; customerAddress: string | null; customerLat: number | null; customerLng: number | null; paymentMethod: string | null },
   cart: Record<string, number>
 ) {
   const token = store.telegramBotToken!;
@@ -618,6 +654,8 @@ async function placeOrder(
       customerName: session.customerName || "Telegram mijoz",
       customerPhone: session.customerPhone,
       customerAddress: session.customerAddress || null,
+      customerLat: session.customerLat,
+      customerLng: session.customerLng,
       paymentMethod: session.paymentMethod === "CARD" ? "CARD" : "CASH",
       items,
       total,
@@ -627,7 +665,7 @@ async function placeOrder(
 
   await prisma.telegramSession.update({
     where: { id: session.id },
-    data: { state: "browsing", cart: {}, paymentMethod: null },
+    data: { state: "browsing", cart: {}, paymentMethod: null, customerLat: null, customerLng: null },
   });
 
   if (store.notifyNewOrders) {
@@ -646,6 +684,7 @@ async function placeOrder(
   await sendMessage(
     token,
     chatId,
-    `✅ Buyurtma qabul qilindi!\n\nJami: ${formatSom(total)}\n\nTez orada siz bilan bog'lanamiz.`
+    `✅ Buyurtma qabul qilindi!\n\nJami: ${formatSom(total)}\n\nTez orada siz bilan bog'lanamiz.`,
+    { replyKeyboard: mainKeyboard(store) }
   );
 }

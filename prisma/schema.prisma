@@ -110,6 +110,8 @@ model TelegramSession {
   customerName    String?
   customerPhone   String?
   customerAddress String?
+  customerLat     Float?
+  customerLng     Float?
   paymentMethod   String?
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
@@ -125,7 +127,12 @@ model OnlineOrder {
   store             Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customerName      String
   customerPhone     String
+  // Optional second number the customer typed in the storefront cart ("Qo'shimcha telefon raqam").
+  extraPhone        String?
   customerAddress   String?
+  // Pin dropped by the customer in the storefront ("Joylashuvni aniqlash"), if any.
+  customerLat       Float?
+  customerLng       Float?
   items             Json
   total             Int
   paymentMethod     PaymentMethod @default(CASH)

@@ -1,0 +1,289 @@
+/* New design -> Mijozlar. Scoped under .refine-ds; uses only Refine tokens. */
+
+.refine-ds .mj-seg-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.refine-ds .mj-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--sp-4);
+}
+
+.refine-ds .mj-kpi {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.refine-ds .mj-kpi-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.refine-ds .mj-kpi .kpi-val {
+  white-space: normal;
+  font-size: var(--fs-2xl);
+}
+
+.refine-ds .mj-card {
+  overflow: visible;
+}
+
+.refine-ds .mj-tabs {
+  padding: 0 var(--sp-6);
+}
+
+.refine-ds .mj-search {
+  width: 300px;
+  max-width: 100%;
+}
+
+.refine-ds .mj-select {
+  width: 190px;
+  max-width: 100%;
+}
+
+.refine-ds .mj-select select {
+  padding-right: var(--sp-5);
+}
+
+.refine-ds .mj-select .ic {
+  margin-left: calc(-1 * var(--sp-6));
+  pointer-events: none;
+}
+
+.refine-ds .mj-error {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-6) 0;
+  color: var(--danger-text);
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .mj-tbl td.mj-wrap {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The orders table has 9 columns, so it uses tighter cell padding to fit without scrolling. */
+.refine-ds .mj-tbl-tight th,
+.refine-ds .mj-tbl-tight td {
+  padding-right: var(--sp-3);
+  padding-left: var(--sp-3);
+}
+
+.refine-ds .mj-tbl-tight th:first-child,
+.refine-ds .mj-tbl-tight td:first-child {
+  padding-left: var(--sp-6);
+}
+
+.refine-ds .mj-tbl-tight th:last-child,
+.refine-ds .mj-tbl-tight td:last-child {
+  padding-right: var(--sp-6);
+}
+
+.refine-ds .mj-tbl-tight th {
+  white-space: normal;
+  line-height: var(--lh-snug);
+}
+
+.refine-ds .mj-tbl-tight td {
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .mj-tbl-tight td.mj-wrap {
+  max-width: 150px;
+}
+
+.refine-ds .mj-person {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.refine-ds .mj-person b {
+  display: block;
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+
+.refine-ds .mj-person small {
+  display: block;
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.refine-ds .mj-muted {
+  color: var(--text-3);
+}
+
+.refine-ds .mj-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refine-ds .mj-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.refine-ds .mj-actions .row-act:hover.is-danger {
+  color: var(--danger-text);
+  background: var(--danger-soft);
+}
+
+.refine-ds .mj-map-links {
+  display: flex;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.refine-ds .mj-map-links a {
+  color: var(--primary-text);
+}
+
+.refine-ds .mj-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-12) 0;
+}
+
+.refine-ds .mj-order-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0;
+}
+
+/* ---- drawer + modals ---- */
+.refine-ds .mj-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  background: var(--overlay);
+}
+
+.refine-ds .mj-overlay-modal {
+  z-index: 45;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+}
+
+.refine-ds .mj-drawer-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refine-ds .mj-drawer-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.refine-ds .mj-drawer-panels .panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refine-ds .mj-panel-val {
+  font-size: var(--fs-lg);
+  white-space: nowrap;
+}
+
+.refine-ds .mj-sales {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.refine-ds .mj-sale {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.refine-ds .mj-sale-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.refine-ds .mj-sale-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.refine-ds .mj-sale-total {
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.refine-ds .mj-sale-total.is-canceled {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.refine-ds .mj-sale-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .mj-sale-line span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refine-ds .mj-form-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .mj-confirm-body {
+  align-items: center;
+  gap: var(--sp-2);
+  padding-top: 28px;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .refine-ds .mj-tabs {
+    padding: 0 var(--sp-4);
+  }
+
+  .refine-ds .drawer {
+    width: 100%;
+  }
+}

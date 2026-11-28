@@ -45,6 +45,51 @@
   z-index: 30;
 }
 
+/* Full-bleed pages (Kassa): the viewport is split into sidebar + a fixed-height work area (no shell top bar). */
+.refine-ds .rf-shell.is-bleed {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.refine-ds .rf-shell.is-bleed > .main {
+  height: 100vh;
+}
+
+.refine-ds .rf-shell.is-bleed .content {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.refine-ds .rf-shell.is-bleed .figma-pos {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .refine-ds .rf-shell.is-bleed {
+    height: auto;
+    overflow: visible;
+  }
+
+  .refine-ds .rf-shell.is-bleed > .main {
+    height: auto;
+  }
+
+  .refine-ds .rf-shell.is-bleed .content {
+    padding: 0;
+  }
+
+  .refine-ds .rf-shell.is-bleed .figma-pos {
+    height: auto;
+    min-height: 100vh;
+  }
+}
+
 @media (max-width: 900px) {
   .refine-ds .rf-hide-m {
     display: none;

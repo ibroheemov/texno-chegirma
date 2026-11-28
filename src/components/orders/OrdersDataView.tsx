@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatSom, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { yandexMapsUrl, googleMapsUrl } from "@/lib/mapLinks";
 
 type OrderStatus = "PENDING" | "CONFIRMED" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELED" | "FAILED";
 type PaymentFilter = "all" | "CASH" | "CARD" | "CREDIT" | "MIXED";
@@ -19,7 +20,10 @@ type Order = {
   number: number;
   customerName: string;
   customerPhone: string;
+  extraPhone: string | null;
   customerAddress: string | null;
+  customerLat: number | null;
+  customerLng: number | null;
   items: OrderItem[];
   total: number;
   paymentMethod: string;
@@ -215,14 +219,39 @@ export function OrdersDataView({ variant }: { variant: "orders" | "delivery" }) 
                       <p className="flex items-center gap-1 text-xs text-muted">
                         <Phone size={11} /> {o.customerPhone}
                       </p>
+                      {o.extraPhone && (
+                        <p className="flex items-center gap-1 text-xs text-muted">
+                          <Phone size={11} /> {o.extraPhone} <span className="opacity-70">(qo&apos;shimcha)</span>
+                        </p>
+                      )}
                     </td>
                     <td className="max-w-[180px] py-2.5 pr-3 text-xs text-muted">
                       {o.customerAddress ? (
                         <span className="flex items-start gap-1">
                           <MapPin size={11} className="mt-0.5 shrink-0" /> {o.customerAddress}
                         </span>
-                      ) : (
+                      ) : o.customerLat == null || o.customerLng == null ? (
                         "—"
+                      ) : null}
+                      {o.customerLat != null && o.customerLng != null && (
+                        <span className="mt-1 flex gap-2">
+                          <a
+                            href={yandexMapsUrl(o.customerLat, o.customerLng)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-accent hover:underline"
+                          >
+                            Yandex
+                          </a>
+                          <a
+                            href={googleMapsUrl(o.customerLat, o.customerLng)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-accent hover:underline"
+                          >
+                            Google
+                          </a>
+                        </span>
                       )}
                     </td>
                     <td className="py-2.5 pr-3 font-semibold">{formatSom(o.total)}</td>
