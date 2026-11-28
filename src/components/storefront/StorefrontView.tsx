@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { formatSom } from "@/lib/format";
+import { INSTALLMENT_MONTHS, installmentMonthlyPayment, installmentUnitPrice } from "@/lib/installment";
 import { cn } from "@/lib/cn";
 
 type ProductWithCategory = Product & { category: Category | null };
@@ -206,6 +207,13 @@ function CartDrawer({
   const [error, setError] = useState("");
 
   const total = cart.reduce((s, l) => s + l.product.price * l.qty, 0);
+  // With an installment each product's price is raised by its own markup for that length.
+  const installmentTotalFor = (months: number) =>
+    cart.reduce((s, l) => s + installmentUnitPrice(l.product.price, l.product.installmentMarkups, months) * l.qty, 0);
+  const isInstallment = paymentMethod === "INSTALLMENT";
+  const unitPrice = (l: CartLine) =>
+    isInstallment ? installmentUnitPrice(l.product.price, l.product.installmentMarkups, installmentMonths) : l.product.price;
+  const payableTotal = isInstallment ? installmentTotalFor(installmentMonths) : total;
 
   function changeQty(productId: string, delta: number) {
     setCart((prev) =>
@@ -330,7 +338,7 @@ function CartDrawer({
                     <div key={l.product.id} className="flex items-center gap-2 rounded-lg bg-surface-muted p-2">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{l.product.name}</p>
-                        <p className="text-xs text-muted">{formatSom(l.product.price)}</p>
+                        <p className="text-xs text-muted">{formatSom(unitPrice(l))}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <button
@@ -360,7 +368,7 @@ function CartDrawer({
 
               <div className="mt-4 flex items-center justify-between border-t border-dashed border-border pt-3 text-base">
                 <span className="font-semibold">JAMI</span>
-                <span className="font-bold text-accent">{formatSom(total)}</span>
+                <span className="font-bold text-accent">{formatSom(payableTotal)}</span>
               </div>
 
               <div className="mt-4 flex flex-col gap-3 pb-5">
@@ -433,7 +441,7 @@ function CartDrawer({
                   <div className="rounded-lg bg-surface-muted p-3">
                     <p className="text-xs font-medium text-muted">Necha oyga bo&apos;lib to&apos;lamoqchisiz?</p>
                     <div className="mt-2 grid grid-cols-3 gap-2">
-                      {([3, 6, 12] as const).map((m) => (
+                      {INSTALLMENT_MONTHS.map((m) => (
                         <button
                           key={m}
                           type="button"
@@ -447,10 +455,15 @@ function CartDrawer({
                         </button>
                       ))}
                     </div>
+                    {payableTotal !== total && (
+                      <p className="mt-2 text-xs text-muted">
+                        Naqd narx {formatSom(total)} · muddatli narx {formatSom(payableTotal)}
+                      </p>
+                    )}
                     <p className="mt-2 text-sm">
                       Oyiga to&apos;lov:{" "}
                       <span className="font-bold text-accent">
-                        {formatSom(Math.ceil(total / installmentMonths))}
+                        {formatSom(installmentMonthlyPayment(payableTotal, installmentMonths))}
                       </span>
                     </p>
                   </div>

@@ -11,6 +11,12 @@ import { Loader2, ScanBarcode, Keyboard, ArrowRight, Pencil, Upload, Camera, Plu
 import { BarcodeScannerModal } from "@/components/pos/BarcodeScannerModal";
 import { CameraCaptureModal } from "./CameraCaptureModal";
 import { cn } from "@/lib/cn";
+import {
+  INSTALLMENT_MONTHS,
+  installmentMonthlyPayment,
+  installmentUnitPrice,
+  parseInstallmentMarkups,
+} from "@/lib/installment";
 
 type Supplier = { id: string; name: string; phone: string | null };
 type UnitOption = "dona" | "litr" | "kg" | "metr";
@@ -62,6 +68,8 @@ export function ProductFormModal({
   const [barcodePrice, setBarcodePrice] = useState("");
   const [onSale, setOnSale] = useState(false);
   const [salePrice, setSalePrice] = useState("");
+  // Installment markup per length, in percent (strings so the inputs can be empty).
+  const [installmentPct, setInstallmentPct] = useState<Record<number, string>>({ 3: "", 6: "", 12: "" });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -107,6 +115,12 @@ export function ProductFormModal({
       setBarcodePrice(product?.barcodePrice != null ? String(product.barcodePrice) : "");
       setOnSale(product?.onSale ?? false);
       setSalePrice(product?.salePrice != null ? String(product.salePrice) : "");
+      const savedMarkups = parseInstallmentMarkups(product?.installmentMarkups);
+      setInstallmentPct({
+        3: savedMarkups[3] != null ? String(savedMarkups[3]) : "",
+        6: savedMarkups[6] != null ? String(savedMarkups[6]) : "",
+        12: savedMarkups[12] != null ? String(savedMarkups[12]) : "",
+      });
       setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,6 +246,9 @@ export function ProductFormModal({
       barcodePrice: barcodePrice || null,
       onSale,
       salePrice: onSale ? salePrice : null,
+      installmentMarkups: Object.fromEntries(
+        INSTALLMENT_MONTHS.filter((m) => Number(installmentPct[m]) > 0).map((m) => [m, Number(installmentPct[m])])
+      ),
       // Sent on both create and edit, so switching a product into (or out of)
       // Dollar mode while editing it actually takes effect.
       currency: currency === "USD" ? "usd" : "som",
@@ -527,6 +544,42 @@ export function ProductFormModal({
         <Field label="Barkod narxi (so'm, ixtiyoriy)">
           <Input type="number" value={barcodePrice} onChange={(e) => setBarcodePrice(e.target.value)} />
         </Field>
+
+        <div className="rounded-lg border border-border p-3">
+          <p className="text-sm font-medium">Muddatli to&apos;lov ustamasi</p>
+          <p className="mt-0.5 text-xs text-muted">
+            Muddatli to&apos;lovda sotish narxi shu foizga oshadi va oylarga bo&apos;linadi. Bo&apos;sh qoldirsangiz —
+            ustama yo&apos;q.
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            {INSTALLMENT_MONTHS.map((months) => (
+              <Field key={months} label={`${months} oy (%)`}>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0"
+                  value={installmentPct[months]}
+                  onChange={(e) => setInstallmentPct((prev) => ({ ...prev, [months]: e.target.value }))}
+                />
+              </Field>
+            ))}
+          </div>
+          {Number(price) > 0 && INSTALLMENT_MONTHS.some((m) => Number(installmentPct[m]) > 0) && (
+            <div className="mt-3 flex flex-col gap-1 text-xs text-muted">
+              {INSTALLMENT_MONTHS.filter((m) => Number(installmentPct[m]) > 0).map((months) => {
+                const total = installmentUnitPrice(Number(price), { [months]: Number(installmentPct[months]) }, months);
+                return (
+                  <p key={months}>
+                    {months} oy:{" "}
+                    <span className="font-semibold text-foreground">{total.toLocaleString("en-US")} so&apos;m</span> ·{" "}
+                    {installmentMonthlyPayment(total, months).toLocaleString("en-US")} so&apos;m/oy
+                  </p>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Miqdori">
