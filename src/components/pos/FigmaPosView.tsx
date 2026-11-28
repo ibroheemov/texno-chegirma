@@ -1188,7 +1188,7 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                 onClick={postponeCart}
                 disabled={props.submitting || (props.cart.length === 0 && deferredCarts.length === 0)}
               >
-                <Pause className="figma-button-icon" size={18} strokeWidth={1.8} aria-hidden="true" />
+                <Pause className="figma-button-icon" size={20} strokeWidth={1.8} aria-hidden="true" />
                 <span>Kechiktirish</span>
                 <Shortcut>F9</Shortcut>
               </button>
