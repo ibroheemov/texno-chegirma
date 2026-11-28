@@ -1,5 +1,6 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
+import { extractPostTexts, latestRateFromPosts } from "./fxChannel";
+import { repriceUsdProducts } from "./usdReprice";
 
 export type UsdRateInfo = { rate: number; source: "telegram" | "cbu" | "manual"; date?: string };
 
@@ -21,62 +22,48 @@ async function fetchCbuUsdRate(): Promise<{ rate: number; date: string } | null>
   }
 }
 
-const HTML_ENTITIES: Record<string, string> = {
-  "&amp;": "&",
-  "&lt;": "<",
-  "&gt;": ">",
-  "&quot;": '"',
-  "&#39;": "'",
-  "&nbsp;": " ",
-};
+// Short in-memory cache for the channel page. Next's `revalidate` cache serves the OLD page first and
+// refreshes in the background (so a changed rate took two loads and 5+ minutes to show up), and
+// getUsdRate + syncUsdPrices both fetch on every request. One fetch per channel per minute keeps
+// Telegram happy and a rate change visible within a minute.
+const CHANNEL_CACHE_MS = 60_000;
+const CHANNEL_FAILURE_CACHE_MS = 15_000;
+const channelCache = new Map<string, { at: number; ttl: number; value: Promise<{ rate: number } | null> }>();
 
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;|&lt;|&gt;|&quot;|&#39;|&nbsp;/g, (m) => HTML_ENTITIES[m])
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
-}
-
-// A number with 4+ digits (ignoring "'"/"," thousands separators) counts as a
-// "real" rate figure. This is what lets us skip past the small "+10"/"-5"
-// change-indicator numbers that sit right next to the actual rate in these
-// channels' posts, without the admin having to write a regex to do it.
-function isQualifyingNumber(raw: string): boolean {
-  return raw.replace(/[^\d]/g, "").length >= 4;
-}
-
-// Reads the latest post from a public Telegram channel's no-login preview
-// page (t.me/s/<username>) and pulls a rate out of it: finds `keyword` in the
-// post, then returns the Nth (1-based) qualifying number found after it.
+// Reads the latest rate post from a public Telegram channel's no-login preview
+// page (t.me/s/<username>): finds `keyword` in the post, then returns the Nth
+// (1-based) qualifying number found after it. Posts without the keyword (ads,
+// news) are skipped in favour of the most recent one that has it.
 async function fetchChannelUsdRate(
   username: string,
   keyword: string,
   numberIndex: number
 ): Promise<{ rate: number } | null> {
-  try {
-    const res = await fetch(`https://t.me/s/${encodeURIComponent(username)}`, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; savdo-app rate sync)" },
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(6000),
-    });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const blocks = [...html.matchAll(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/g)];
-    if (blocks.length === 0) return null;
-    const latest = blocks[blocks.length - 1][1];
-    const plain = decodeHtmlEntities(latest.replace(/<[^>]+>/g, " "));
+  const key = `${username}|${keyword}|${numberIndex}`;
+  const cached = channelCache.get(key);
+  if (cached && Date.now() - cached.at < cached.ttl) return cached.value;
 
-    const idx = plain.indexOf(keyword);
-    if (idx === -1) return null;
-    const after = plain.slice(idx + keyword.length);
-    const numbers = [...after.matchAll(/\d[\d.,']*/g)].map((m) => m[0]).filter(isQualifyingNumber);
-    const raw = numbers[numberIndex - 1];
-    if (!raw) return null;
-    const rate = Number(raw.replace(/[^\d.]/g, ""));
-    if (!(rate > 0)) return null;
-    return { rate };
-  } catch {
-    return null;
-  }
+  const value = (async () => {
+    try {
+      const res = await fetch(`https://t.me/s/${encodeURIComponent(username)}`, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; savdo-app rate sync)" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!res.ok) return null;
+      const rate = latestRateFromPosts(extractPostTexts(await res.text()), keyword, numberIndex);
+      return rate ? { rate } : null;
+    } catch {
+      return null;
+    }
+  })();
+  const entry = { at: Date.now(), ttl: CHANNEL_CACHE_MS, value };
+  channelCache.set(key, entry);
+  // Don't pin a failure for a full minute.
+  void value.then((result) => {
+    if (!result) entry.ttl = CHANNEL_FAILURE_CACHE_MS;
+  });
+  return value;
 }
 
 type RateSourceConfig = {
@@ -117,10 +104,11 @@ export async function getUsdRate(storeId: string): Promise<UsdRateInfo | null> {
 
 /**
  * Dollar-priced products (Product.usdRate set) follow the live rate: their
- * so'm prices are rescaled by liveRate / storedRate in one idempotent UPDATE,
- * so calling this on every page load / request is safe and cheap. Only a
- * real live source (channel or CBU) drives it, never the manual fallback, so
- * a failed fetch can't make prices jump.
+ * so'm selling prices are recomputed from an exact dollar base and rounded up
+ * to the next 1,000 (see usdReprice.ts). It is idempotent, so calling it on
+ * every page load / request is safe and cheap. Only a real live source
+ * (channel or CBU) drives it, never the manual fallback, so a failed fetch
+ * can't make prices jump.
  */
 export async function syncUsdPrices(storeId: string): Promise<void> {
   const store = await prisma.store.findUnique({
@@ -129,18 +117,8 @@ export async function syncUsdPrices(storeId: string): Promise<void> {
   });
   const live = await fetchLiveRate(store ?? {});
   if (!live) return;
-  const r = live.rate;
   try {
-    await prisma.$executeRaw(Prisma.sql`
-      UPDATE "Product" SET
-        "price" = ROUND("price" * ${r}::float8 / "usdRate")::int,
-        "costPrice" = ROUND("costPrice" * ${r}::float8 / "usdRate")::int,
-        "salePrice" = ROUND("salePrice" * ${r}::float8 / "usdRate")::int,
-        "barcodePrice" = ROUND("barcodePrice" * ${r}::float8 / "usdRate")::int,
-        "usdRate" = ${r}::float8,
-        "updatedAt" = now()
-      WHERE "storeId" = ${storeId} AND "usdRate" IS NOT NULL AND "usdRate" <> ${r}::float8
-    `);
+    await prisma.$transaction((tx) => repriceUsdProducts(tx, storeId, live.rate));
   } catch (e) {
     console.error("syncUsdPrices failed", e);
   }

@@ -193,6 +193,12 @@ model Product {
   // Set for products priced in dollars: the USD/UZS rate their so'm prices
   // were last calculated at. Prices are rescaled whenever the CBU rate moves.
   usdRate      Float?
+  // Exact (unrounded) selling prices as dollar amounts. A dollar-priced product's so'm prices are
+  // these times the rate, rounded UP to the next 1,000, so repeated rate changes can't ratchet the
+  // rounded price upward. Filled in by syncUsdPrices; reset whenever a price is saved by hand.
+  priceUsd        Float?
+  salePriceUsd    Float?
+  barcodePriceUsd Float?
   // Installment markup per length, in percent: {"3": 30, "6": 45, "12": 70}. See lib/installment.ts.
   installmentMarkups Json?
   createdAt    DateTime  @default(now())

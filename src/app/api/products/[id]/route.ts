@@ -43,6 +43,10 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/products/[
       salePrice: body.onSale && body.salePrice ? Number(body.salePrice) : null,
       usdRate,
       installmentMarkups: installmentMarkupsForStorage(body.installmentMarkups) ?? Prisma.JsonNull,
+      // A hand-saved price is the new truth: drop the dollar bases so syncUsdPrices re-derives them.
+      priceUsd: null,
+      salePriceUsd: null,
+      barcodePriceUsd: null,
     },
   });
 
