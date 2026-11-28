@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, LogOut } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
@@ -20,9 +20,31 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const page = pageTitles[pathname];
+
+  // Remember the desktop collapsed state between visits (read after mount to keep SSR markup stable).
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("admin-sidebar-collapsed") === "1");
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((value) => {
+      const next = !value;
+      try {
+        localStorage.setItem("admin-sidebar-collapsed", next ? "1" : "0");
+      } catch {
+        /* storage unavailable */
+      }
+      return next;
+    });
+  }
 
   // New design pages bring their own layout (Kassa: Figma rail, others: Refine shell).
   if (pathname.startsWith("/admin/yangi-dizayn")) {
@@ -37,7 +59,14 @@ export function AdminShell({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar restricted={restricted} storeName={storeName} open={open} onClose={() => setOpen(false)} />
+      <Sidebar
+        restricted={restricted}
+        storeName={storeName}
+        open={open}
+        onClose={() => setOpen(false)}
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur lg:px-6">
           <button
