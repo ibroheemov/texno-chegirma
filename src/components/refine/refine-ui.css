@@ -184,6 +184,7 @@ a.btn:focus-visible:where(.refine-ds *) {box-shadow: var(--ring);}
 .refine-ds .control-sm input {font-size: var(--fs-sm);}
 .refine-ds .control-lg {height: var(--h-lg); border-radius: var(--r-lg);}
 .refine-ds .control-lg input {font-size: 15.5px;}
+.refine-ds .control-lg .spin {width: 40px; height: 40px; border-radius: var(--r-md);}
 .refine-ds .control.ta {height: auto; padding: 10px var(--sp-3); align-items: flex-start;}
 .refine-ds .control textarea {resize: vertical; min-height: 88px; line-height: var(--lh-normal);}
 .refine-ds .spin {width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--r-sm); color: var(--text-2); background: var(--field);}
