@@ -18,6 +18,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { KassaMark, KassaWordmark } from "./KassaMark";
 import "./refine-tokens.css";
 import "./refine-ui.css";
 import "./refine-shell.css";
@@ -76,10 +77,11 @@ export function RefineShell({
       <div className={`shell rf-shell${bleed ? " is-bleed" : ""}`}>
         <aside className={`sb${collapsed ? " is-collapsed" : ""}`} aria-label="Asosiy navigatsiya">
           <div className="sb-brand">
-            <span className="brand-mark">Z</span>
-            <span className="hide-c" style={{ minWidth: 0 }}>
-              <b className="rf-ellipsis">{storeName}</b>
-              <small>Yangi dizayn</small>
+            <span className="brand-mark">
+              <KassaMark size={44} />
+            </span>
+            <span className="hide-c rf-brand-word">
+              <KassaWordmark size={44} />
             </span>
             <button
               type="button"
