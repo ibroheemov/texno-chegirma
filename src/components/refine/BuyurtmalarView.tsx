@@ -1,23 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Package, Truck, Users } from "lucide-react";
-import type { CustomerRow } from "@/lib/types";
-import { CustomersPanel } from "./CustomersPanel";
+import { Package, Truck } from "lucide-react";
 import { OrdersPanel } from "./OrdersPanel";
-import "./mijozlar.css";
+import "./buyurtmalar.css";
 
-type Section = "mijozlar" | "buyurtmalar" | "yetkazish";
+type Section = "buyurtmalar" | "yetkazish";
 
-const SECTIONS: { key: Section; label: string; icon: typeof Users }[] = [
-  { key: "mijozlar", label: "Mijozlar", icon: Users },
+const SECTIONS: { key: Section; label: string; icon: typeof Package }[] = [
   { key: "buyurtmalar", label: "Buyurtmalar", icon: Package },
   { key: "yetkazish", label: "Yetkazish", icon: Truck },
 ];
 
-export function MijozlarView({ customers }: { customers: CustomerRow[] }) {
-  const [section, setSection] = useState<Section>("mijozlar");
-  const [addOpen, setAddOpen] = useState(false);
+export function BuyurtmalarView() {
+  const [section, setSection] = useState<Section>("buyurtmalar");
 
   return (
     <>
@@ -26,12 +22,12 @@ export function MijozlarView({ customers }: { customers: CustomerRow[] }) {
           <span className="t-overline" style={{ color: "var(--primary-text)" }}>
             Savdo
           </span>
-          <h1 className="t-h1">Mijozlar</h1>
-          <p className="t-body-sm">Mijozlar, buyurtmalar, yetkazish va qarzlar.</p>
+          <h1 className="t-h1">Buyurtmalar</h1>
+          <p className="t-body-sm">Onlayn buyurtmalar va yetkazib berish.</p>
         </div>
       </div>
 
-      <div className="mj-seg-row">
+      <div className="bo-seg-row">
         <div className="seg" role="tablist" aria-label="Bo‘lim">
           {SECTIONS.map(({ key, label, icon: Icon }) => (
             <button
@@ -49,14 +45,6 @@ export function MijozlarView({ customers }: { customers: CustomerRow[] }) {
         </div>
       </div>
 
-      {section === "mijozlar" && (
-        <CustomersPanel
-          customers={customers}
-          formOpen={addOpen}
-          onFormClose={() => setAddOpen(false)}
-          onAdd={() => setAddOpen(true)}
-        />
-      )}
       {section === "buyurtmalar" && <OrdersPanel variant="orders" />}
       {section === "yetkazish" && <OrdersPanel variant="delivery" />}
     </>
