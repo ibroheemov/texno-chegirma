@@ -217,6 +217,16 @@ export function FigmaPosView(props: FigmaPosViewProps) {
   const [paymentLineMethods, setPaymentLineMethods] = useState(["Naqd"]);
   const [deferredOpen, setDeferredOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!clearConfirmOpen) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setClearConfirmOpen(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [clearConfirmOpen]);
 
   const postponeCart = useCallback(() => {
     if (!props.cart.length) {
@@ -549,6 +559,51 @@ export function FigmaPosView(props: FigmaPosViewProps) {
           <section className="figma-cart-workspace" aria-label="Savat">
             <div className={`figma-cart-panel${props.cart.length ? "" : " is-empty"}`}>
               {props.cart.length > 0 && (
+                <button type="button" className="btn btn-danger-soft figma-clear-cart" onClick={() => setClearConfirmOpen(true)}>
+                  <Trash2 className="ic" size={18} aria-hidden="true" />
+                  Savatni tozalash
+                </button>
+              )}
+              {clearConfirmOpen && (
+                <div className="figma-confirm-overlay" onClick={() => setClearConfirmOpen(false)}>
+                  <div
+                    className="modal"
+                    role="alertdialog"
+                    aria-modal="true"
+                    aria-labelledby="figma-clear-title"
+                    style={{ maxWidth: 440 }}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="modal-b figma-confirm-body">
+                      <span className="ic-tile lg danger">
+                        <Trash2 className="ic" size={22} aria-hidden="true" />
+                      </span>
+                      <h3 className="t-h3" id="figma-clear-title">
+                        Savatni tozalaysizmi?
+                      </h3>
+                      <p className="t-body-sm">
+                        Savatdagi {props.cart.length} ta pozitsiya olib tashlanadi. Bu amalni ortga qaytarib bo‘lmaydi.
+                      </p>
+                    </div>
+                    <div className="modal-f">
+                      <button type="button" className="btn btn-outline" autoFocus onClick={() => setClearConfirmOpen(false)}>
+                        Bekor qilish
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        onClick={() => {
+                          setClearConfirmOpen(false);
+                          props.clearCart();
+                        }}
+                      >
+                        Tozalash
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {props.cart.length > 0 && (
                 <div className="figma-cart-header">
                   <div className="figma-cart-summary">
                     <span className="figma-receipt-id">Savat #{String(props.activeBasketIndex + 1).padStart(2, "0")}</span>
@@ -571,10 +626,6 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                       <FigmaIcon index={11} size={14} />
                     </label>
                   </div>
-                  <button type="button" className="figma-clear-cart" onClick={props.clearCart}>
-                    <FigmaIcon index={16} size={16} />
-                    Savatni tozalash
-                  </button>
                 </div>
               )}
 
