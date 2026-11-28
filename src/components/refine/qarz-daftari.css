@@ -1,0 +1,326 @@
+/* New design -> Qarz daftari. Scoped under .refine-ds; uses only Refine tokens. */
+
+.refine-ds .qd-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.refine-ds .qd-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sp-4);
+}
+
+.refine-ds .qd-kpi {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.refine-ds .qd-kpi-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.refine-ds .qd-kpi .kpi-val {
+  white-space: normal;
+  font-size: var(--fs-2xl);
+}
+
+.refine-ds .qd-card {
+  overflow: visible;
+}
+
+.refine-ds .qd-bar {
+  flex-wrap: wrap;
+}
+
+.refine-ds .qd-search {
+  width: 340px;
+  max-width: 100%;
+}
+
+.refine-ds .qd-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.refine-ds .qd-list li + li {
+  border-top: 1px solid var(--line-soft);
+}
+
+.refine-ds .qd-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-6);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.refine-ds .qd-row:hover {
+  background: var(--hover);
+}
+
+.refine-ds .qd-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.refine-ds .qd-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.refine-ds .qd-row-title b {
+  color: var(--text-strong);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.refine-ds .qd-row-sub {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refine-ds .qd-row-amt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.refine-ds .qd-row-amt b {
+  color: var(--text-strong);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+.refine-ds .qd-row-amt b.is-canceled {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.refine-ds .qd-row-amt small {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.refine-ds .qd-row-amt small.is-danger,
+.refine-ds .qd-deal-date.is-danger {
+  color: var(--danger-text);
+  font-weight: var(--fw-semibold);
+}
+
+.refine-ds .qd-row-chev {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+/* ---- drawer + dialogs ---- */
+.refine-ds .qd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  background: var(--overlay);
+}
+
+.refine-ds .qd-overlay-modal {
+  z-index: 45;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+}
+
+.refine-ds .qd-drawer-title {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refine-ds .qd-drawer-title b {
+  color: var(--text-strong);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+}
+
+.refine-ds .qd-balance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--success-soft);
+  border-color: var(--success-border);
+}
+
+.refine-ds .qd-balance-val {
+  color: var(--text-strong);
+  font-size: var(--fs-4xl);
+  font-weight: var(--fw-bold);
+}
+
+.refine-ds .qd-balance-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+}
+
+.refine-ds .qd-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+
+.refine-ds .qd-section-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.refine-ds .qd-deal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.refine-ds .qd-deal b {
+  color: var(--text-strong);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+
+.refine-ds .qd-deal-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .qd-deal-note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+}
+
+.refine-ds .qd-balance + .qd-section + .btn,
+.refine-ds .drawer-b > .btn-block {
+  margin-top: var(--sp-5);
+}
+
+.refine-ds .qd-empty-pay {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.refine-ds .qd-pay-list {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: var(--sp-2);
+  list-style: none;
+}
+
+.refine-ds .qd-pay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.refine-ds .qd-pay > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.refine-ds .qd-pay-amt {
+  color: var(--success-text);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+
+.refine-ds .qd-pay-check {
+  color: var(--success-text);
+}
+
+.refine-ds .qd-drawer-f {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.refine-ds .qd-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.refine-ds .qd-textarea textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: var(--sp-2) 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
+.refine-ds .qd-form-error {
+  margin: var(--sp-3) 0 0;
+  color: var(--danger-text);
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .qd-pay-hint {
+  margin: 0 0 var(--sp-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.refine-ds .qd-fill {
+  align-self: flex-start;
+  margin-top: var(--sp-1);
+  padding-left: 0;
+}
+
+@media (max-width: 640px) {
+  .refine-ds .qd-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .refine-ds .qd-row {
+    padding: var(--sp-4);
+  }
+}

@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  BookOpen,
   ChevronLeft,
   ChevronRight,
-  CreditCard,
   Gift,
   HandCoins,
   LogOut,
@@ -50,8 +50,8 @@ const navEntries: NavEntry[] = [
       { href: `${MIJOZLAR}/buyurtmalar`, label: "Buyurtmalar", icon: UsersRound },
     ],
   },
+  { href: "/admin/yangi-dizayn/qarz-daftari", label: "Qarz daftari", icon: BookOpen, migrated: true },
   { href: "/admin/moliya", label: "Moliya", icon: Wallet, migrated: false },
-  { href: "/admin/nasiya", label: "Nasiya", icon: CreditCard, migrated: false },
   { href: "/admin/xodimlar", label: "Xodimlar", icon: UserCog, migrated: false },
   { href: "/admin/yangi-dizayn/kategoriyalar", label: "Kategoriyalar", icon: Tags, migrated: true },
   { href: "/admin/sozlamalar", label: "Sozlamalar", icon: Settings, migrated: false },
@@ -203,7 +203,7 @@ export function RefineShell({
           <div className="sb-foot">
             <div className="sb-card hide-c">
               <b>Bosqichma-bosqich o‘tish</b>
-              Kassa, Ombor, Mijozlar va Kategoriyalar yangi dizaynda. Qolgan bo‘limlar tayyor bo‘lguncha eski dizaynda ochiladi.
+              Kassa, Ombor, Mijozlar, Kategoriyalar va Qarz daftari yangi dizaynda. Qolgan bo‘limlar tayyor bo‘lguncha eski dizaynda ochiladi.
               <Link href="/admin" className="rf-old-link">
                 Eski dizaynga o‘tish
                 <ChevronRight className="ic" size={14} />
