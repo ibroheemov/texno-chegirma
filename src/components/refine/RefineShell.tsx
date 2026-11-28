@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  BookOpen,
   ChevronRight,
-  CreditCard,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -30,8 +30,8 @@ const navEntries: NavEntry[] = [
   { href: "/admin/yangi-dizayn", label: "Kassa", icon: ShoppingCart, migrated: true },
   { href: "/admin/yangi-dizayn/ombor", label: "Ombor", icon: Package, migrated: true },
   { href: "/admin/yangi-dizayn/mijozlar", label: "Mijozlar", icon: Users, migrated: true },
+  { href: "/admin/yangi-dizayn/qarz-daftari", label: "Qarz daftari", icon: BookOpen, migrated: true },
   { href: "/admin/moliya", label: "Moliya", icon: Wallet, migrated: false },
-  { href: "/admin/nasiya", label: "Nasiya", icon: CreditCard, migrated: false },
   { href: "/admin/xodimlar", label: "Xodimlar", icon: UserCog, migrated: false },
   { href: "/admin/kategoriyalar", label: "Kategoriyalar", icon: Tags, migrated: false },
   { href: "/admin/sozlamalar", label: "Sozlamalar", icon: Settings, migrated: false },
@@ -135,7 +135,7 @@ export function RefineShell({
           <div className="sb-foot">
             <div className="sb-card hide-c">
               <b>Bosqichma-bosqich o‘tish</b>
-              Kassa, Ombor va Mijozlar yangi dizaynda. Qolgan bo‘limlar tayyor bo‘lguncha eski dizaynda ochiladi.
+              Kassa, Ombor, Mijozlar va Qarz daftari yangi dizaynda. Qolgan bo‘limlar tayyor bo‘lguncha eski dizaynda ochiladi.
               <Link href="/admin" className="rf-old-link">
                 Eski dizaynga o‘tish
                 <ChevronRight className="ic" size={14} />

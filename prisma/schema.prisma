@@ -93,6 +93,7 @@ model Store {
   telegramSessions TelegramSession[]
   salaryPayments   SalaryPayment[]
   layawayOrders    LayawayOrder[]
+  debtEntries      DebtEntry[]
 }
 
 // Per-chat state for the Telegram shopping bot. A bot webhook handles one
@@ -549,4 +550,39 @@ model SalaryPayment {
   createdAt     DateTime      @default(now())
 
   @@index([storeId, employeeId, createdAt])
+}
+
+// "Qarz daftari": a standalone ledger of money people owe the owner for things
+// handed over outside the register (not tied to a Sale, Customer or Moliya's
+// Nasiya/CreditLedger). Status is derived: canceledAt set -> canceled, fully paid
+// -> paid, past dueDate -> overdue, otherwise pending.
+model DebtEntry {
+  id          String    @id @default(cuid())
+  storeId     String
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  debtorName  String
+  phone       String?
+  // "Nima olingan?" - what the debtor took (product or service).
+  item        String
+  totalAmount Int
+  paidAmount  Int       @default(0)
+  dueDate     DateTime
+  note        String?
+  canceledAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  payments DebtPayment[]
+
+  @@index([storeId, dueDate])
+}
+
+model DebtPayment {
+  id        String    @id @default(cuid())
+  entryId   String
+  entry     DebtEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  amount    Int
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@index([entryId])
 }
