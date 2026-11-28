@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Customer } from "@prisma/client";
-import { Banknote, CalendarDays, Check, ChevronDown, Clock, Command, CreditCard, MapPin, Pause, Plus, ScanBarcode, Tag, Trash2, Wallet, X } from "lucide-react";
+import { Banknote, CalendarDays, Check, ChevronDown, Clock, Command, CreditCard, MapPin, Minus, Pause, Plus, ScanBarcode, Tag, Trash2, Wallet, X } from "lucide-react";
 import type { ReceiptSale, ReceiptSettings } from "@/lib/receipt";
 import { formatSom } from "@/lib/format";
 import type { CartLine, PaymentMethod, PriceAdjustment, ProductWithCategory } from "./PosView";
@@ -606,11 +606,8 @@ export function FigmaPosView(props: FigmaPosViewProps) {
               {props.cart.length > 0 && (
                 <div className="figma-cart-header">
                   <div className="figma-cart-summary">
-                    <span className="figma-receipt-id">Savat #{String(props.activeBasketIndex + 1).padStart(2, "0")}</span>
-                    <strong>{props.cart.length} pozitsiya · {props.totalQty} dona</strong>
-                    <label className="figma-seller-select">
-                      <FigmaIcon index={10} size={16} />
-                      <span>Sotuvchi:</span>
+                    <label className="figma-seller-select control control-sm">
+                      <span className="addon">Sotuvchi:</span>
                       <select
                         value={props.employeeId}
                         onChange={(event) => props.setEmployeeId(event.target.value)}
@@ -623,8 +620,10 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                           </option>
                         ))}
                       </select>
-                      <FigmaIcon index={11} size={14} />
+                      <ChevronDown className="ic" size={16} aria-hidden="true" />
                     </label>
+                    <strong>{props.cart.length} pozitsiya · {props.totalQty} dona</strong>
+                    <span className="figma-receipt-id">Savat #{String(props.activeBasketIndex + 1).padStart(2, "0")}</span>
                   </div>
                 </div>
               )}
@@ -650,9 +649,9 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                   <div className="figma-cart-table-header">
                     <span>№</span>
                     <span>Mahsulot</span>
-                    <span>Artikul / Shtrix-kod</span>
+                    <span>Shtrix-kod</span>
                     <span>Miqdor</span>
-                    <span>Summa, UZS</span>
+                    <span>Summa</span>
                     <span />
                   </div>
                   {props.cart.map((line, index) => {
@@ -684,21 +683,28 @@ export function FigmaPosView(props: FigmaPosViewProps) {
                           <strong>{line.product.sku || "—"}</strong>
                           <small>{line.product.sku || "—"}</small>
                         </span>
-                        <div className="figma-quantity-stepper">
+                        <div className="control figma-quantity-stepper">
                           <button
                             type="button"
+                            className="spin"
                             onClick={() => props.changeQty(line.product.id, -1)}
                             aria-label={`${line.product.name} miqdorini kamaytirish`}
                           >
-                            <FigmaIcon index={19} size={22} />
+                            <Minus className="ic" size={16} aria-hidden="true" />
                           </button>
-                          <span>{line.qty}</span>
+                          <input
+                            className="mono"
+                            value={line.qty}
+                            readOnly
+                            aria-label={`${line.product.name} miqdori`}
+                          />
                           <button
                             type="button"
+                            className="spin"
                             onClick={() => props.changeQty(line.product.id, 1)}
                             aria-label={`${line.product.name} miqdorini oshirish`}
                           >
-                            <FigmaIcon index={20} size={22} />
+                            <Plus className="ic" size={16} aria-hidden="true" />
                           </button>
                         </div>
                         <button

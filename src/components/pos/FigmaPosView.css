@@ -93,9 +93,8 @@
   color: var(--primary-hover);
 }
 
-.figma-pos .figma-seller-select { display: flex; width: 200px; height: 36px; flex: 0 0 auto; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-3); border-radius: var(--r-md); background: var(--field); color: var(--text-3); font-size: var(--fs-sm); font-weight: 400; white-space: nowrap; }
-
-.figma-pos .figma-seller-select select { min-width: 0; flex: 1; appearance: none; border: 0; outline: 0; background: transparent; color: var(--text); font-size: var(--fs-md); font-weight: 500; cursor: pointer; }
+/* Refine native select (.control.control-sm: "Label: value" with a trailing chevron); only the width is Kassa's. */
+.figma-pos .figma-seller-select { width: 200px; flex: 0 0 auto; }
 
 .figma-pos .figma-work-area { display: contents; }
 
@@ -264,17 +263,18 @@
 .figma-pos .figma-cart-panel { position: relative; display: flex; min-width: 0; min-height: 0; flex: 1 1 auto; flex-direction: column; overflow: hidden; background: var(--surface); }
 
 /* Wraps onto a second line when the cart column is narrow (summary + seller select + clear button). */
-.figma-pos .figma-cart-header { display: flex; min-height: 64px; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-3); padding: 8px 14px 8px 25px; }
+.figma-pos .figma-cart-header { display: flex; min-height: 64px; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-3); padding: 8px 29px 8px 25px; }
 
 .figma-pos .figma-cart-summary {
   display: flex;
+  width: 100%;
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2) 13px;
 }
 
-.figma-pos .figma-receipt-id { display: inline-flex; height: 30px; align-items: center; padding: 0 10px; border-radius: var(--r-sm); background: var(--field-hover); color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
+.figma-pos .figma-receipt-id { display: inline-flex; margin-left: auto; height: 30px; align-items: center; padding: 0 10px; border-radius: var(--r-sm); background: var(--field-hover); color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
 
 .figma-pos .figma-cart-summary strong { overflow: hidden; color: var(--text-2); font-size: 15px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -481,20 +481,10 @@
   font-size: 9px;
 }
 
-.figma-pos .figma-quantity-stepper {
-  display: grid;
-  height: 54px;
-  grid-template-columns: 54px minmax(0, 1fr) 54px;
-  align-items: center;
-  border-radius: var(--r-lg);
-  background: var(--field-hover);
-}
+/* Refine "Number field" stepper (.control with .spin buttons and a centred mono value). */
+.figma-pos .figma-quantity-stepper { padding: 0 6px; gap: var(--sp-1); }
 
-.figma-pos .figma-quantity-stepper button { display: grid; width: 54px; height: 54px; place-items: center; border: 0; border-radius: var(--r-lg); background: transparent; color: var(--text-3); cursor: pointer; }
-
-.figma-pos .figma-quantity-stepper button:hover { background: var(--primary-soft); color: var(--primary-text); }
-
-.figma-pos .figma-quantity-stepper span { color: var(--text); font-size: var(--fs-lg); font-weight: 500; text-align: center; }
+.figma-pos .figma-quantity-stepper input { text-align: center; cursor: default; }
 
 .figma-pos .figma-line-total { display: flex; flex-direction: column; align-items: flex-end; justify-self: end; padding: 0; border: 0; background: transparent; color: var(--text-strong); font-family: var(--font-mono); font-size: var(--fs-lg); font-weight: 500; text-align: right; white-space: nowrap; cursor: pointer; }
 
@@ -1363,7 +1353,7 @@
   }
 
   .figma-pos .figma-seller-select {
-    width: 150px;
+    width: 190px;
   }
 
   .figma-pos .figma-toolbar {
@@ -1454,21 +1444,17 @@
 
   .figma-pos .figma-quantity-stepper {
     height: 34px;
-    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    padding: 0 3px;
+    gap: 0;
     border-radius: var(--r-sm);
   }
 
-  .figma-pos .figma-quantity-stepper button {
-    width: 28px;
-    height: 34px;
+  .figma-pos .figma-quantity-stepper .spin {
+    width: 24px;
+    height: 24px;
   }
 
-  .figma-pos .figma-quantity-stepper button svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .figma-pos .figma-quantity-stepper span {
+  .figma-pos .figma-quantity-stepper input {
     font-size: var(--fs-2xs);
   }
 
@@ -1510,12 +1496,8 @@
     padding-left: 5px;
   }
 
-  .figma-pos .figma-quantity-stepper {
-    grid-template-columns: 22px minmax(0, 1fr) 22px;
-  }
-
-  .figma-pos .figma-quantity-stepper button {
-    width: 22px;
+  .figma-pos .figma-quantity-stepper .spin {
+    width: 20px;
   }
 }
 
